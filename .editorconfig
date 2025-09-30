@@ -1,0 +1,26 @@
+root = true
+
+
+[*.cs]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8-bom
+insert_final_newline = true
+
+
+# Именование
+dotnet_naming_rule.private_fields_underscore.severity = suggestion
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = prefix_underscore
+
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+
+
+dotnet_naming_style.prefix_underscore.required_prefix = _
+
+
+# Стильку Unity оставляем PascalCase для методов/MonoBehaviour
+csharp_preserve_single_line_blocks = true
+csharp_new_line_before_open_brace = all
