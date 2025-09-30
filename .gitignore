@@ -1,0 +1,30 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uilds/
+[Bb]uild/
+[Ll]ogs/
+[Mm]emoryCaptures/
+UserSettings/
+
+
+# Rider/VS
+.idea/
+.vs/
+*.suo
+*.user
+*.userprefs
+
+
+# Crash/Reports
+*.stackdump
+*.pidb
+*.booproj
+*.svd
+*.pdb
+
+
+# OS
+.DS_Store
+Thumbs.db
