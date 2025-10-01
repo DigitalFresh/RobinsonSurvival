@@ -26,6 +26,11 @@ jobs:
 
       - name: Run tests (all)
         uses: game-ci/unity-test-runner@v4   # ← Официальный раннер тестов от game-ci
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL:   ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          
         with:
           unityVersion: 6000.1.12f1          # ← Твоя версия Unity
           testMode: all                      # ← EditMode + PlayMode
