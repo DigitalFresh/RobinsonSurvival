@@ -1,35 +1,42 @@
+# Unity Build Windows — делает билд Windows по тэгу vX.Y.Z и вручную
 name: Build Windows
-on:
-workflow_dispatch:
-push:
-tags:
-- 'v*.*.*'
 
+on:
+  workflow_dispatch:                    # ← Кнопка ручного запуска
+  push:
+    tags:
+      - 'v*.*.*'                        # ← По тэгам vMAJOR.MINOR.PATCH
 
 jobs:
-build:
-runs-on: ubuntu-latest
-steps:
-- uses: actions/checkout@v4
-with:
-lfs: true
-- uses: actions/cache@v4
-with:
-path: |
-~/.cache
-Library
-key: ${{ runner.os }}-unity-${{ hashFiles('**/Packages/manifest.json') }}
-- name: Build
-uses: game-ci/unity-builder@v4
-env:
-UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-with:
-unityVersion: 2022.3.41f1
-targetPlatform: StandaloneWindows64
-buildName: RobinsonsCurvival
-buildPath: Builds/Windows
-- name: Upload artifact
-uses: actions/upload-artifact@v4
-with:
-name: build-windows
-path: Builds/Windows
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache
+            Library
+          key: ${{ runner.os }}-unity-${{ hashFiles('**/Packages/manifest.json') }}
+
+      - name: Build
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}  # ← берём секрет из Settings
+        with:
+          unityVersion: 6000.1.12f1                    # ← твоя версия
+          targetPlatform: StandaloneWindows64          # ← цель
+          buildName: RobinsonsCurvival                 # ← имя билда
+          buildPath: Builds/Windows                    # ← куда складывать
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4               # ← прикладываем билд к задаче
+        with:
+          name: build-windows
+          path: Builds/Windows
