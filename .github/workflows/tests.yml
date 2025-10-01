@@ -1,26 +1,32 @@
+# Unity Tests — прогоняет EditMode/PlayMode тесты при пуше/PR в main
 name: Unity Tests
-on:
-pull_request:
-push:
-branches: [ main ]
 
+on:                                     # ← Когда запускать
+  pull_request:                         #   - на любой PR
+  push:                                 #   - и на пуши в main
+    branches: [ main ]
 
 jobs:
-test:
-runs-on: ubuntu-latest
-steps:
-- uses: actions/checkout@v4
-with:
-lfs: true
-- uses: actions/cache@v4
-with:
-path: |
-~/.cache
-Library
-key: ${{ runner.os }}-unity-${{ hashFiles('**/Packages/manifest.json') }}
-- name: Run tests
-uses: game-ci/unity-test-runner@v4
-with:
-unityVersion: 6000.1.12f1
-testMode: all
-artifactsPath: artifacts
+  test:
+    runs-on: ubuntu-latest              # ← Среда выполнения: Ubuntu runner
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4       # ← Клонируем репозиторий на раннер
+        with:
+          lfs: true                     #    (LFS включён про запас)
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4          # ← Кешируем кэш/Library по ключу зависимостей
+        with:
+          path: |
+            ~/.cache
+            Library
+          key: ${{ runner.os }}-unity-${{ hashFiles('**/Packages/manifest.json') }}
+
+      - name: Run tests (all)
+        uses: game-ci/unity-test-runner@v4   # ← Официальный раннер тестов от game-ci
+        with:
+          unityVersion: 6000.1.12f1          # ← Твоя версия Unity
+          testMode: all                      # ← EditMode + PlayMode
+          artifactsPath: artifacts           # ← Логи/JUnit попадают сюда
