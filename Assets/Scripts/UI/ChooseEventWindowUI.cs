@@ -92,17 +92,6 @@ public class ChooseEventWindowUI : MonoBehaviour
             }
         }
 
-        //int sel = 0;                                                   // Индекс выбранной опции (по умолчанию 0)
-        //var first = (currentEvent.choices != null && currentEvent.choices.Count > 0)
-        //            ? currentEvent.choices[sel] : null;                // Берём первую опцию, если она есть
-        //if (dropZone && first != null)                                 // Если зона и опция валидны
-        //{
-        //    dropZone.SetupRequirementTyped(first.mainCostType,         // Тип требования (✋/👊/👁)
-        //                                   Mathf.Max(0, first.mainCostAmount)); // Сколько нужно
-        //    dropZone.ClearZone();                                      // Сбросим ранее брошенные карты (если вдруг остались)
-        //    UpdateConfirmInteractable();                               // Пересчёт доступности Confirm
-        //}
-
         // применим выделение и стрелочки
         ApplySelectionVisuals();
 
@@ -232,7 +221,7 @@ public class ChooseEventWindowUI : MonoBehaviour
         if (stats != null)
         {
             // выдаём «реальные» награды из opt.rewards
-            
+
             foreach (var r in opt.rewards)
             {
                 // проверка «гейта» только если r.gatedByAdditional == true
@@ -285,7 +274,7 @@ public class ChooseEventWindowUI : MonoBehaviour
                         }
                         //GiveNewCards(r, awardedCards);
                         needAwardedCardsModal = true;
-                       // Debug.Log(awardedCards);
+                        // Debug.Log(awardedCards);
                         break;
                     case EventSO.RewardType.FreeReward:
                         if (r.freeReward != null)
@@ -302,7 +291,7 @@ public class ChooseEventWindowUI : MonoBehaviour
                         break;
                 }
             }
-            
+
             // 2) применить штрафы (opt.penalties)
             foreach (var p in opt.penalties)
             {
@@ -515,31 +504,14 @@ public class ChooseEventWindowUI : MonoBehaviour
         HandController.Instance.DiscardCards(used);
     }
 
-    //private void ResolveTileAndMovePlayer()
-    //{
-    //    if (sourceTile == null) return;
-
-    //    sourceTile.SetType(HexType.Empty);
-    //    sourceTile.eventData = null;
-    //    sourceTile.Reveal();
-    //    sourceTile.UpdateVisual();
-
-    //    var map = HexMapController.Instance;
-    //    if (map != null && map.playerPawn != null)
-    //    {
-    //        map.playerPawn.MoveTo(sourceTile);
-    //        map.RevealNeighbors(sourceTile.x, sourceTile.y);
-    //    }
-    //}
-
     public void Hide()
     {
         canvasGroup.alpha = 0f;
         canvasGroup.blocksRaycasts = false;
         canvasGroup.interactable = false;
-       // gameObject.SetActive(false);
+        // gameObject.SetActive(false);
         currentEvent = null;
-       // sourceTile = null;
+        // sourceTile = null;
 
         ModalGate.Release(this); // <— выключил
 

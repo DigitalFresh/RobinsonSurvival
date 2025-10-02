@@ -84,6 +84,8 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
     private float _maskFullHeight;                       // Полная высота маски (чтобы восстановить при возврате)
     public float zoneScale = 1f;
 
+    private static bool _lastConfirmOpen;                                  // Кэш последнего состояния модалки (глобально для CardView)
+
 
     // === ИНИЦИАЛИЗАЦИЯ ===
     private void Awake()                                   // Стартовые ссылки и настройки
@@ -153,18 +155,21 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
 
     private void Update()                                   // Блокировка кнопки «Глаз» поверх модалок/окон
     {
-        if (eyeDrawButton == null) return;
-
-        // 1) Если открыта модалка подтверждения — кнопку всегда прячем
-        if (ConfirmModalUI.IsOpen)
+        if (eyeDrawButton == null) return;                                 // Нет кнопки — выходим
+        bool now = ConfirmModalUI.IsOpen;                                  // Считываем текущее состояние модалки подтверждения
+        if (now != _lastConfirmOpen)                                       // Было ли изменение состояния с прошлого кадра?
         {
-            if (eyeDrawButton.gameObject.activeSelf)
-                eyeDrawButton.gameObject.SetActive(false);
-            return;
+            _lastConfirmOpen = now;                                        // Обновляем кэш
+            if (now)                                                       // Если модалка открылась
+            {
+                if (eyeDrawButton.gameObject.activeSelf)                   // Если кнопка сейчас видна
+                    eyeDrawButton.gameObject.SetActive(false);             // Прячем кнопку «Глаз» на время модалки
+                return;                                                    // Больше ничего не делаем
+            }
+            // Модалка закрылась — можно пересчитать видимость кнопки
+            UpdateEyeButtonVisibility();                                   // Локальные правила показа «Глаза»
+            return;                                                        // И выходим
         }
-
-        // 2) Иначе — пересчитываем по нашей новой логике (в т.ч. при открытом EventWindowUI)
-        UpdateEyeButtonVisibility();
     }
 
 
@@ -413,16 +418,18 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
             playCount = ew.dropZone.placedCards.Count;                           // Берём количество карт в PlayArea
 
         // --- NEW: учитываем карты, лежащие в боевых зонах, если Combat_screen открыт ---
-        int combatCount = 0;                                                     // Счетчик карт в боевых зонах
-        var zones = Object.FindObjectsByType<CombatDropZone>(                     // ✅ НОВОЕ: современный API
-            FindObjectsInactive.Include,                                          //    Включаем неактивные объекты
-            FindObjectsSortMode.None                                              //    Без сортировки (быстрее)
-            );                   // Ищем все боевые зоны (в т.ч. неактивные)
-        foreach (var z in zones)                                                 // Перебираем найденные зоны
-        {
-            if (z == null || !z.gameObject.activeInHierarchy) continue;          // Пропускаем неактивные/пустые
-            combatCount += z.GetComponentsInChildren<CardView>(false).Length;    // Считаем CardView как «1 карта»
-        }
+        int combatCount = CombatController.Instance ? CombatController.Instance.CardsInZones : 0; // Быстро: берём счётчик из контроллера
+        //int combatCount = 0;
+        // Счетчик карт в боевых зонах
+        //var zones = Object.FindObjectsByType<CombatDropZone>(                     // ✅ НОВОЕ: современный API
+        //    FindObjectsInactive.Include,                                          //    Включаем неактивные объекты
+        //    FindObjectsSortMode.None                                              //    Без сортировки (быстрее)
+        //    );                   // Ищем все боевые зоны (в т.ч. неактивные)
+        //foreach (var z in zones)                                                 // Перебираем найденные зоны
+        //{
+        //    if (z == null || !z.gameObject.activeInHierarchy) continue;          // Пропускаем неактивные/пустые
+        //    combatCount += z.GetComponentsInChildren<CardView>(false).Length;    // Считаем CardView как «1 карта»
+        //}
 
         // Есть ли вместимость с учётом карт «на столе» (событие + бой)
         bool hasCapacityConsideringBoard = (handCount + playCount + combatCount) < maxHand;
@@ -469,6 +476,9 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
             var combatZone = transform.parent ? transform.parent.GetComponent<CombatDropZone>() : null; // Пытаемся взять зону боя у родителя
             if (combatZone != null)                                            // Если карта лежала в боевой зоне
             {
+                if (CombatController.Instance != null)                                // Если есть контроллер боя
+                    CombatController.Instance.NotifyCardLeftZone(this);               // Сообщаем: карта покинула боевую зону
+
                 // Сообщаем блоку стычки, что карта покидает эту зону (чтобы пересчитать суммы)
                 if (combatZone.block != null)                                   // Если есть владелец
                     combatZone.block.OnCardRemovedFromZone(this, combatZone.zoneType); // Обновим Fist/Shield/Wounds

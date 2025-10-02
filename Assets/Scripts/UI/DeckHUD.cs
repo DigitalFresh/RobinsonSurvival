@@ -116,26 +116,6 @@ public class DeckHUD : MonoBehaviour
         int space = Mathf.Max(0, hand.maxHand - hand.HandCount);
         int toDraw = Mathf.Min(requested, space);
 
-        // По текущей логике — списываем энергию даже если часть/ничего не влезает
-        stats.SpendEnergy(energyCost);
-
-        //// Добираем карты (DeckController сам перетасует, если draw пуст)
-        //List<CardInstance> cards = deck.DrawMany(toDraw);
-        //foreach (var inst in cards)
-        //    hand.AddCardToHand(inst);
-
-        //// Если обе стопки пусты — блокируем кнопки и сообщаем
-        //if (deck.DrawCount == 0 && deck.DiscardCount == 0)
-        //{
-        //    ShowWarning("В колоде и сбросе не осталось карт");
-        //    if (btnDraw2 != null) btnDraw2.interactable = false;
-        //    if (btnDraw5 != null) btnDraw5.interactable = false;
-        //}
-        //else
-        //{
-        //    RefreshAll(); // обновим цифры и кнопки
-        //}
-
         // Списываем энергию сразу (по вашей логике, даже если карт вытянется меньше/ноль)
         stats.SpendEnergy(energyCost);                                                                // Списали энергию
         RefreshButtons();                                                                             // Мгновенно обновим доступность кнопок по новой энергии

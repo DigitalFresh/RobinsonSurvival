@@ -15,7 +15,7 @@ public class EventWindowUI : MonoBehaviour
     public Image iconImage;                      // UI-изображение для иконки события
     public TextMeshProUGUI titleText;            // Текст заголовка события
     public TextMeshProUGUI descriptionText;      // Текст описания события
-    
+
     [Header("Main cost block")]
     public Image hexBack;                  // Image "Hex" (смена цвета по типу)
     public Sprite[] hexBackByCostType;     // [✋=0, 👊=1, 👁=2]
@@ -73,12 +73,12 @@ public class EventWindowUI : MonoBehaviour
         if (dropZone) dropZone.OnZoneChanged -= OnZoneChanged;
     }
 
-   // Публичный метод: показать окно для конкретного события и тайла
+    // Публичный метод: показать окно для конкретного события и тайла
     public void Show(EventSO ev, HexTile tile)
     {
         currentEvent = ev;                       // Запоминаем событие
         sourceTile = tile;                       // Запоминаем тайл-источник
-        
+
         // Заполняем визуальные поля данными
         titleText.text = ev != null ? ev.eventName : "Событие";  // Заголовок — имя события
         descriptionText.text = ev != null ? ev.description : ""; // Описание — из SO
@@ -416,20 +416,6 @@ public class EventWindowUI : MonoBehaviour
                                                                                                   // Также собирайте список для модалки «получены карты» (как раньше)
                                 awardedCardDefs.Add(r.cardDef);                                   // Для InfoModal (визуальное уведомление)
                                 needAwardedCardsModal = true;
-
-                                //if (HandController.Instance != null &&
-                                //    HandController.Instance.HandCount < HandController.Instance.maxHand)
-                                //{
-                                //    HandController.Instance.AddCardToHand(inst);
-                                //}
-                                //else
-                                //{
-                                //    deck.AddToTop(inst); // метод в DeckController (мы его уже добавляли ранее)
-                                //}
-                                //// для модалки — сохраняем именно CardDef, чтобы потом показать полноценную CardView
-                                //awardedCardDefs.Add(r.cardDef);
-                                //needAwardedCardsModal = true;
-                                ////Debug.Log(needAwardedCardsModal);
                             }
                             break;
                         }
@@ -484,70 +470,6 @@ public class EventWindowUI : MonoBehaviour
             cardsOverflowToDeckTop
         ));
 
-        //gameObject.SetActive(false);                          // окончательно выключаем окно события
-
-        //// 1) Сначала «пенальти» (левый верх → центр → тайл)
-        //RewardPickupAnimator.Instance?.PlayStatPenaltyBatch(
-        //    sourceTile,
-        //    statPenaltiesToAnimate,
-        //    onDone: () =>
-        //    {
-        //        // 2) Затем «ресторы» (тайл → центр → левый верх)
-        //        RewardPickupAnimator.Instance?.PlayStatRestoreBatch(
-        //            sourceTile,
-        //            statRestoresToAnimate,
-        //            onDone: () =>
-        //            {
-        //                // 3) После статов — ресурсы Стартуем анимацию: иконка у гекса → центр → вправо → слот инвентаря
-        //                RewardPickupAnimator.Instance?.PlayForRewards(
-        //                    sourceTile,                                      // От какого тайла летим
-        //                    resourceRewardsToAnimate,                        // Какие ресурсы
-        //                    onBeforeInventoryApply: () =>                    // Хук: ДО посадки в инвентарь — начисляем ресурсы
-        //                    {
-        //                        var invCtrl = InventoryController.Instance;  // Берём инвентарь
-        //                        if (invCtrl != null)                         // Если он есть
-        //                        {
-        //                            foreach (var rr in resourceRewardsToAnimate)             // Для каждой награды
-        //                                invCtrl.AddResource(rr.resource, Mathf.Max(1, rr.amount)); // Начисляем
-        //                        }
-        //                    },
-        //                    onAfterDone: () =>                               // Хук: ПОСЛЕ полёта — чистим тайл и двигаем фишку
-        //                    {
-        //                        //Debug.Log(sourceTile);
-        //                        if (sourceTile != null)                      // Защита от null
-        //                        {
-        //                            sourceTile.SetType(HexType.Empty);       // Теперь делаем тайл пустым
-        //                            sourceTile.eventData = null;             // Снимаем данные события
-        //                            sourceTile.Reveal();                     // Оставляем открытым
-        //                            sourceTile.UpdateVisual();               // Обновляем визуал
-        //                        }
-
-
-        //                        var map = HexMapController.Instance;
-        //                        if (map != null && map.playerPawn != null)
-        //                        {
-        //                            map.playerPawn.MoveTo(sourceTile);
-        //                        }
-        //                        ForceTileVisualRefresh(sourceTile);
-        //                        sourceTile = null;
-        //                        gameObject.SetActive(false);
-        //                    }
-        //                );
-        //            }
-        //        );
-        //    }
-        //);
-
-        //// Показ модалки «новые карты» (как и раньше)
-        //if (awardedCardDefs.Count > 0)
-        //{
-        //    var modal = FindFirstObjectByType<InfoModalUI>(FindObjectsInactive.Include);
-        //    if (modal != null)
-        //    {
-        //        string msg = (awardedCardDefs.Count == 1) ? "Получена новая карта" : $"Получены новые карты ×{awardedCardDefs.Count}";
-        //        modal.ShowNewCards(msg, awardedCardDefs);
-        //    }
-        //}
     }
 
 
@@ -684,30 +606,6 @@ public class EventWindowUI : MonoBehaviour
         sourceTile = null;
         gameObject.SetActive(false); // Просто спрятать окно без изменений тайла
     }
-
-    //private IEnumerator MovePawnSmooth(PlayerPawn pawn, HexTile target, float speedUnitsPerSec = 0.1f)
-    //{
-    //    if (!pawn || !target) yield break;                  // Защита от null
-    //    var tr = pawn.transform;                            // Трансформ фишки
-    //    Vector3 from = tr.position;                         // Начальная позиция
-    //    Vector3 to = target.transform.position;             // Финальная позиция
-    //    float dist = Vector3.Distance(from, to);            // Расстояние
-    //    float dur = Mathf.Max(0.1f, dist / Mathf.Max(0.001f, speedUnitsPerSec)); // Длительность перемещения
-    //    float t = 0f;                                       // Внутреннее время
-    //    while (t < dur)                                     // Пока не дошли
-    //    {
-    //        t += Time.deltaTime;                            // Тик времени
-    //        float k = Mathf.SmoothStep(0f, 1f, t / dur);    // S-кривая
-    //        tr.position = Vector3.LerpUnclamped(from, to, k); // Лерп позиции
-    //        yield return null;                              // Ждём кадр
-    //    }
-    //    tr.position = to;                                   // Фиксируем позицию
-    //    var map = HexMapController.Instance;
-    //    map.playerPawn.MoveTo(sourceTile);
-    //    //////// / Открываем соседей map.RevealNeighbors(target.x, target.y); 
-    //    sourceTile = null;
-    //    gameObject.SetActive(false);
-    //}
 
     private void ReturnCardsFromDropZoneToHand()                   // Вернуть все карты из зоны обратно в руку
     {
