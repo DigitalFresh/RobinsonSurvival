@@ -168,12 +168,13 @@ public class FightingBlockUI : MonoBehaviour
     // Корутина мигания: попеременно 1 → 0 → 1 → ...
     private System.Collections.IEnumerator WoundsBlinkRoutine()// Собственно мигание
     {
+        var wait = new WaitForSeconds(woundsBlinkInterval);
         while (true)                                           // Пока не остановят
         {
             SetWoundsAlpha(1f);                                // Показать (альфа = 1)
-            yield return new WaitForSeconds(woundsBlinkInterval); // Подождать
+            yield return wait; // Подождать
             SetWoundsAlpha(0f);                                // Скрыть (альфа = 0)
-            yield return new WaitForSeconds(woundsBlinkInterval); // Подождать
+            yield return wait; // Подождать
         }
     }
 }
