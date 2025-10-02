@@ -184,8 +184,6 @@ public class OptionUI : MonoBehaviour
         if (darker)
             darker.SetActive(!value);
 
-        // рамки/фон опций обычно делаются через разные спрайты самого Option — оставим визуал дизайнеру
-        // при желании можно переключать дополнительные бордеры здесь
     }
 
     public EventSO.ChoiceOption GetBound() => bound;
