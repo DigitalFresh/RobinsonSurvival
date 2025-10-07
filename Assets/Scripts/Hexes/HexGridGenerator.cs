@@ -4,10 +4,12 @@ using UnityEngine;
 public class HexGridGenerator : MonoBehaviour
 {
     public GameObject hexPrefab; // Префаб гекса, который будем копировать при генерации
-    public int gridWidth = 7;    // Количество гексов по горизонтали
-    public int gridHeight = 7;   // Количество гексов по вертикали
+    public int gridWidth = 5;    // Количество гексов по горизонтали
+    public int gridHeight = 5;   // Количество гексов по вертикали
     public float hexWidth = 1f;  // Ширина одного гекса (в юнитах)
     public float hexHeight = 0.866f; // Высота гекса для flat-top ориентации (0.866 ≈ √3/2 при ширине 1)
+
+    public static HexGridGenerator Instance;
 
     private EventSO[] allEvents;        // Кэш всех событий, загруженных из Resources
 
@@ -17,9 +19,9 @@ public class HexGridGenerator : MonoBehaviour
         var provider = EventProviderBehaviour.Instance?.GetProvider(); // Берём провайдер из сервис-компонента
         allEvents = provider != null ? provider.LoadAllEvents() : new EventSO[0]; // Загружаем все EventSO
 
-        GenerateGrid(); // Генерируем сетку при старте
+      GenerateGrid(); // Генерируем сетку при старте
         // После генерации можно поставить игрока:
-        HexMapController.Instance?.PlacePlayerAtStartAuto(gridWidth, gridHeight); // Автостарт фишки игрока
+       // HexMapController.Instance?.PlacePlayerAtStartAuto(gridWidth, gridHeight); // Автостарт фишки игрока
 
         // Получаем ссылку на фишку игрока из контроллера карты
         var pawn = HexMapController.Instance?.playerPawn;           // Берём фишку игрока (если есть)
@@ -84,18 +86,18 @@ public class HexGridGenerator : MonoBehaviour
 
                 tile.Init(x, y);                  // Передаём координаты гексу (и обновляем его имя внутри, если нужно)
 
-                if (allEvents != null && allEvents.Length > 0)                  // Если есть события
-                {
-                    var randomEvent = allEvents[Random.Range(0, allEvents.Length)]; // Случайно выбираем одно
-                    tile.BindEvent(randomEvent);                                // Привязываем событие к тайлу
-                }
-                else
-                {
-                    tile.SetType(HexType.Empty);                                // Иначе — пустой тайл
-                }
+                //if (allEvents != null && allEvents.Length > 0)                  // Если есть события
+                //{
+                //    var randomEvent = allEvents[Random.Range(0, allEvents.Length)]; // Случайно выбираем одно
+                //    tile.BindEvent(randomEvent);                                // Привязываем событие к тайлу
+                //}
+                //else
+                //{
+                //    tile.SetType(HexType.Empty);                                // Иначе — пустой тайл
+                //}
 
-                // --- Проходимость и стартовое открытие (для прототипа) ---
-                tile.SetPassable(tile.type != HexType.Blocked);        // Заблокированные делаем непроходимыми
+                //// --- Проходимость и стартовое открытие (для прототипа) ---
+                //tile.SetPassable(tile.type != HexType.Blocked);        // Заблокированные делаем непроходимыми
 
                 HexMapController.Instance.RegisterHex(tile);
             }

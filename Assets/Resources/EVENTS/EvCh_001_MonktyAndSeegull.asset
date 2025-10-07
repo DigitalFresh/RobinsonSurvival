@@ -1,0 +1,164 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51e3b76e3e3861b46b0dc7effc6e5933, type: 3}
+  m_Name: EvCh_001_MonktyAndSeegull
+  m_EditorClassIdentifier: 
+  eventId: EvCh_001_MonktyAndSeegull
+  eventName: "\u0414\u0440\u0430\u043A\u0430 \u043D\u0430 \u0431\u0435\u0440\u0435\u0433\u0443"
+  description: "\u041E\u0431\u0435\u0437\u044C\u044F\u043D\u0430 \u0438 \u0447\u0430\u0439\u043A\u0430
+    \u0434\u0435\u0440\u0443\u0442\u0441\u044F \u043D\u0430 \u0431\u0435\u0440\u0435\u0433\u0443,
+    \u0441\u0442\u0430\u0440\u0430\u044F\u0441\u044C \u043E\u0442\u043E\u0431\u0440\u0430\u0442\u044C
+    \u0434\u0440\u0443\u0433 \u0443 \u0434\u0440\u0443\u0433\u0430 \u043E\u0440\u0430\u043D\u0436\u0435\u0432\u044B\u0439
+    \u0441\u0432\u0435\u0440\u0442\u043E\u043A."
+  icon: {fileID: -1562625999227670337, guid: 837338cd8aa485541b54c9534a7eadfd, type: 3}
+  isCombat: 0
+  isChoice: 1
+  isResource: 0
+  mainCostType: 0
+  mainCostAmount: 1
+  additionalCosts: []
+  additionalMandatory: 0
+  penalties: []
+  rewards: []
+  rewardsAreAlternative: 0
+  alternativeRewards: []
+  choices:
+  - description: "\u0420\u0430\u0437\u043E\u0433\u043D\u0430\u0442\u044C \u0434\u0440\u0430\u0447\u0443\u043D\u043E\u0432
+      \u0438 \u0437\u0430\u0431\u0440\u0430\u0442\u044C \u0441\u0432\u0435\u0440\u0442\u043E\u043A
+      \u0441\u0435\u0431\u0435!"
+    showRewards: 1
+    showHiddenOutcomes: 0
+    mainCostType: 0
+    mainCostAmount: 0
+    additionalCosts: []
+    penalties: []
+    rewards:
+    - type: 3
+      icon: {fileID: 0}
+      resource: {fileID: 0}
+      amount: 0
+      stat: 0
+      restoreAmount: 0
+      cardDef: {fileID: 0}
+      cardCount: 0
+      knownPreview: 0
+      freeReward: {fileID: 11400000, guid: b2c044a92d923e949bb6d8c595e8a74c, type: 2}
+      gatedByAdditional: 0
+      tooltip: 
+      requiredTag: 0
+      requiredAmount: 0
+    - type: 0
+      icon: {fileID: 0}
+      resource: {fileID: 11400000, guid: 4a72f4ef36129134f98c1ac7b9cf5efd, type: 2}
+      amount: 2
+      stat: 0
+      restoreAmount: 0
+      cardDef: {fileID: 0}
+      cardCount: 0
+      knownPreview: 0
+      freeReward: {fileID: 0}
+      gatedByAdditional: 0
+      tooltip: 
+      requiredTag: 0
+      requiredAmount: 0
+    hiddenOutcomes: []
+  - description: "\u041F\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0447\u0435\u043C
+      \u0437\u0430\u043A\u043E\u043D\u0447\u0438\u0442\u0441\u044F \u0438 \u0437\u0430\u0431\u0440\u0430\u0442\u044C
+      \u0434\u043E\u0431\u044B\u0447\u0443 \u0443 \u043F\u043E\u0431\u0435\u0434\u0438\u0442\u0435\u043B\u044F."
+    showRewards: 1
+    showHiddenOutcomes: 0
+    mainCostType: 2
+    mainCostAmount: 2
+    additionalCosts: []
+    penalties:
+    - stat: 1
+      amount: 1
+    rewards:
+    - type: 0
+      icon: {fileID: 0}
+      resource: {fileID: 11400000, guid: b5d2ae5f69a6964499f13632b178e6fb, type: 2}
+      amount: 2
+      stat: 0
+      restoreAmount: 0
+      cardDef: {fileID: 0}
+      cardCount: 0
+      knownPreview: 0
+      freeReward: {fileID: 0}
+      gatedByAdditional: 0
+      tooltip: 
+      requiredTag: 0
+      requiredAmount: 0
+    - type: 2
+      icon: {fileID: 0}
+      resource: {fileID: 0}
+      amount: 0
+      stat: 0
+      restoreAmount: 0
+      cardDef: {fileID: 11400000, guid: 387c562d19c3daf4b9c77ce757b492ff, type: 2}
+      cardCount: 1
+      knownPreview: 1
+      freeReward: {fileID: 0}
+      gatedByAdditional: 0
+      tooltip: 
+      requiredTag: 0
+      requiredAmount: 0
+    hiddenOutcomes:
+    - icon: {fileID: 7471458538052934855, guid: e0561309f7d735740bd1ad9a1100afed, type: 3}
+      tooltip: 
+  - description: "\u0421\u0442\u0430\u0449\u0438\u0442\u044C \u0441\u0432\u0435\u0440\u0442\u043E\u043A
+      \u043F\u043E\u043A\u0430 \u0436\u0438\u0432\u043E\u0442\u043D\u044B\u0435 \u043E\u0442\u0432\u043B\u0435\u0447\u0435\u043D\u044B."
+    showRewards: 0
+    showHiddenOutcomes: 1
+    mainCostType: 1
+    mainCostAmount: 1
+    additionalCosts:
+    - tag: 2
+      amount: 1
+    penalties: []
+    rewards:
+    - type: 2
+      icon: {fileID: 0}
+      resource: {fileID: 0}
+      amount: 0
+      stat: 0
+      restoreAmount: 0
+      cardDef: {fileID: 11400000, guid: 387c562d19c3daf4b9c77ce757b492ff, type: 2}
+      cardCount: 1
+      knownPreview: 1
+      freeReward: {fileID: 0}
+      gatedByAdditional: 0
+      tooltip: 
+      requiredTag: 2
+      requiredAmount: 1
+    - type: 3
+      icon: {fileID: 0}
+      resource: {fileID: 0}
+      amount: 0
+      stat: 0
+      restoreAmount: 0
+      cardDef: {fileID: 0}
+      cardCount: 0
+      knownPreview: 1
+      freeReward: {fileID: 11400000, guid: b2c044a92d923e949bb6d8c595e8a74c, type: 2}
+      gatedByAdditional: 0
+      tooltip: 
+      requiredTag: 0
+      requiredAmount: 0
+    hiddenOutcomes:
+    - icon: {fileID: -619579032, guid: e0561309f7d735740bd1ad9a1100afed, type: 3}
+      tooltip: 
+    - icon: {fileID: -619579032, guid: e0561309f7d735740bd1ad9a1100afed, type: 3}
+      tooltip: 
+  isAggressiveCombat: 0
+  combatEnemies: []
+  previewEnemyIndex: 0
+  defaultHint: 0
