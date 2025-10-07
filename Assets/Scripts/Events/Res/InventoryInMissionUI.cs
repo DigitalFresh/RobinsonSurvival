@@ -6,6 +6,10 @@ using UnityEngine.UI;                       // Layout по желанию
 
 public class InventoryInMissionUI : MonoBehaviour
 {
+    [Header("Ping settings")]
+    [SerializeField] private float pingDuration = 0.18f; // длительность пульса
+    [SerializeField] private AnimationCurve pingCurve; // кривая масштаба (необязательно)
+
     [Header("UI")]
     public Transform contentParent;         // Контейнер для иконок ресурсов в миссии
     public RewardItemUI itemPrefab;         // res_1 prefab (с RewardItemUI)
@@ -275,11 +279,11 @@ public class InventoryInMissionUI : MonoBehaviour
         //  работаем только вокруг зафиксированной базы, а не «текущего» масштаба ---
         var baseScale = _baseScaleBySlot.TryGetValue(slot, out var bs) ? bs : Vector3.one; // Базовый масштаб (обычно 1)
         float t = 0f;                                                 // Текущее время пика
-        float dur = 0.18f;                                            // Длительность одного пульса
+        float dur = pingDuration;                                            // Длительность одного пульса (из настроек)
         while (t < dur)                                               // Пока идёт пульс
         {
             t += Time.deltaTime;                                      // Тик времени
-            float k = Mathf.Sin((t / dur) * Mathf.PI);                // 0→1→0
+            float k = pingCurve != null ? pingCurve.Evaluate(t / dur) : Mathf.Sin((t / dur) * Mathf.PI);                // 0→1→0 по кривой или синусоиде
             float s = 1f + 0.1f * k;                                  // Амплитуда 10% вокруг 1
             if (!slot) yield break;                                   // Защита от уничтожения
             slot.localScale = baseScale * s;                          // Масштабируем относительно базы, НЕ относительно «текущего»

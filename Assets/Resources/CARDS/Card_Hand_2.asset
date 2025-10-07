@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6084b5c5e62d3c4a96be8a2653a2161, type: 3}
+  m_Name: Card_Hand_2
+  m_EditorClassIdentifier: 
+  id: 
+  displayName: Action
+  artwork: {fileID: 6307896642584731094, guid: 5e995bf4fc8c54e41987fcd2add3fdc8, type: 3}
+  color: 0
+  hands: 2
+  fists: 1
+  eye: 0
+  tags: []
+  abilities: []

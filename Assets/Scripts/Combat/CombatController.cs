@@ -1,4 +1,13 @@
-﻿using System.Collections;                                      // IEnumerator
+﻿/*
+ * CombatController — улучшенная версия.
+ * Изменения (без смены публичных API):
+ *  1) Кэшируем WaitForSeconds (меньше GC в корутинах).
+ *  2) Добавлен быстрый счётчик карт в боевых зонах (_cardsInZones) + методы уведомления.
+ *  3) CountCardsOnTable() теперь O(1) — использует счётчик, а не сканирует иерархию.
+ *  4) Подписки на кнопки через метод-группы (без клоужеров).
+ *  5) Сбрасываем счётчик на старте боя и корректно уменьшаем при возврате/сбросе карт.
+ */
+using System.Collections;                                      // IEnumerator
 using System.Collections.Generic;                              // Списки
 using UnityEngine;                                             // MonoBehaviour, GameObject, Transform, Instantiate
 using UnityEngine.UI;                                          // Button
@@ -39,6 +48,15 @@ public class CombatController : MonoBehaviour
     private bool isRunning = false;                             // Идёт бой?
     private int roundIndex = 0;                                 // Номер текущего раунда (с 1)
 
+    // --- PERF-кэш: один раз создаём ожидания, чтобы не аллоцировать каждый раз в корутинах
+    private static readonly WaitForSeconds WOUND_ALERT_WAIT = new WaitForSeconds(1.2f); // ожидание для алерта ран — кэшируем объект
+    private static readonly WaitForSeconds LOOT_DELAY_WAIT = new WaitForSeconds(0.5f);  // пауза перед полётом лута — кэш
+    private static readonly WaitForSeconds END_PAUSE_WAIT = new WaitForSeconds(0.15f); // «выдох» перед закрытием боя — кэш
+
+    // --- Быстрый счётчик карт в боевых зонах (вместо сканирования дочерних трансформов)
+    private int _cardsInZones = 0;                                                         // текущее число карт Attack/Defense
+    public int CardsInZones => _cardsInZones;                                              // чтение для UI/логики (CardView и др.)
+
     private void Awake()
     {
         Instance = this;                                        // Сохраняем синглтон
@@ -53,6 +71,18 @@ public class CombatController : MonoBehaviour
         if (alertRoot) alertRoot.SetActive(false);
     }
 
+    public void NotifyCardEnteredZone(CardView cv)                                         // вызов при дропе карты в зону
+    {
+        _cardsInZones++;                                                                   // увеличиваем счётчик
+        RefreshDrawButtons();                                                              // кнопки добора могли измениться
+    }
+
+    public void NotifyCardLeftZone(CardView cv)                                            // вызов при выходе карты из зоны
+    {
+        _cardsInZones = Mathf.Max(0, _cardsInZones - 1);                                   // уменьшаем, не уходим в минус
+        RefreshDrawButtons();                                                              // обновляем доступность кнопок
+    }
+
     // === ПУБЛИЧНЫЙ СТАРТ БОЯ ===
     public void StartCombat(List<EnemySO> enemies)             // Запустить бой с 1..3 врагами
     {
@@ -62,7 +92,9 @@ public class CombatController : MonoBehaviour
         for (int i = arena.childCount - 1; i >= 0; i--)         // Перебираем детей
             Destroy(arena.GetChild(i).gameObject);              // Уничтожаем блоки, если были
 
-        blocks.Clear();                                         // Чистим список блоков
+        blocks.Clear();
+        _cardsInZones = 0;                                                   // сброс счётчика карт на столе при старте боя
+                                                                             // Чистим список блоков
 
         // Создаём блоки по числу врагов (макс. 3)
         int n = Mathf.Clamp(enemies != null ? enemies.Count : 0, 1, 3); // Сколько спавним
@@ -98,10 +130,14 @@ public class CombatController : MonoBehaviour
         }
 
         // Подписки на кнопки боя
-        if (btnReturnCards) { btnReturnCards.onClick.RemoveAllListeners(); btnReturnCards.onClick.AddListener(ReturnAllToHand); }
-        if (btnDraw2_1) { btnDraw2_1.onClick.RemoveAllListeners(); btnDraw2_1.onClick.AddListener(() => OnDrawNowPlusNext(2, 1, 2)); }
-        if (btnDraw3_2) { btnDraw3_2.onClick.RemoveAllListeners(); btnDraw3_2.onClick.AddListener(() => OnDrawNowPlusNext(3, 2, 3)); }
-        if (btnEndTurn) { btnEndTurn.onClick.RemoveAllListeners(); btnEndTurn.onClick.AddListener(() => StartCoroutine(ResolveRoundAndContinue())); }
+        if (btnReturnCards) { btnReturnCards.onClick.RemoveAllListeners(); btnReturnCards.onClick.AddListener(ReturnAllToHand); }  // метод-группа без клоужера
+        if (btnDraw2_1) { btnDraw2_1.onClick.RemoveAllListeners(); btnDraw2_1.onClick.AddListener(OnClickDraw2_1); }       // без клоужера
+        if (btnDraw3_2) { btnDraw3_2.onClick.RemoveAllListeners(); btnDraw3_2.onClick.AddListener(OnClickDraw3_2); }       // без клоужера
+        if (btnEndTurn) { btnEndTurn.onClick.RemoveAllListeners(); btnEndTurn.onClick.AddListener(OnClickEndTurn); }       // без клоужера
+        //if (btnReturnCards) { btnReturnCards.onClick.RemoveAllListeners(); btnReturnCards.onClick.AddListener(ReturnAllToHand); }
+        //if (btnDraw2_1) { btnDraw2_1.onClick.RemoveAllListeners(); btnDraw2_1.onClick.AddListener(() => OnDrawNowPlusNext(2, 1, 2)); }
+        //if (btnDraw3_2) { btnDraw3_2.onClick.RemoveAllListeners(); btnDraw3_2.onClick.AddListener(() => OnDrawNowPlusNext(3, 2, 3)); }
+        //if (btnEndTurn) { btnEndTurn.onClick.RemoveAllListeners(); btnEndTurn.onClick.AddListener(() => StartCoroutine(ResolveRoundAndContinue())); }
 
         // Начальный раунд
         isRunning = true;                                         // Бой активен
@@ -112,6 +148,12 @@ public class CombatController : MonoBehaviour
         StartCoroutine(RoundStartDrawIfDeferred());               // Отдать отложенный добор (если был)
         RefreshDrawButtons();                                     // Пересчитать доступность «доборов»
     }
+
+
+    // Обработчики кнопок — без лямбда-замыканий (избегаем лишних аллокаций)
+    private void OnClickDraw2_1() { OnDrawNowPlusNext(2, 1, 2); }                  // −2 энергии → +2 сейчас, +1 в следующий раунд
+    private void OnClickDraw3_2() { OnDrawNowPlusNext(3, 2, 3); }                  // −3 энергии → +3 сейчас, +2 в следующий раунд
+    private void OnClickEndTurn() { StartCoroutine(ResolveRoundAndContinue()); }  // завершить раунд
 
     // === КНОПКА «Вернуть карты» ===
     private void ReturnAllToHand()
@@ -137,6 +179,7 @@ public class CombatController : MonoBehaviour
             if (!cv) continue;                                      // Пропуск
             var attach = cv.GetComponent<CombatCardAttachment>();   // Ищем маркер
             if (attach) Destroy(attach);                            // Снимаем привязку к бою
+            _cardsInZones = Mathf.Max(0, _cardsInZones - 1);         // Декремент счётчика — карта покинула боевую зону
             cv.transform.SetParent(hand.handPanel, false);          // Кладём в руку
             cv.rect.localScale = Vector3.one;                       // Восстановить масштаб
         }
@@ -200,12 +243,13 @@ public class CombatController : MonoBehaviour
     private int CountCardsOnTable()                                // Рука + все зоны
     {
         int total = hand ? hand.HandCount : 0;                     // Сколько в руке
-        foreach (var fb in blocks)                                  // По всем стычкам
-        {
-            if (!fb) continue;                                      // Защита
-            total += fb.zoneAttack ? fb.zoneAttack.GetComponentsInChildren<CardView>().Length : 0; // Карты в атаке
-            total += fb.zoneDefense ? fb.zoneDefense.GetComponentsInChildren<CardView>().Length : 0; // Карты в защите
-        }
+        total += _cardsInZones;                              // Карты в боевых зонах (наш счётчик)
+        //foreach (var fb in blocks)                                  // По всем стычкам
+        //{
+        //    if (!fb) continue;                                      // Защита
+        //    total += fb.zoneAttack ? fb.zoneAttack.GetComponentsInChildren<CardView>().Length : 0; // Карты в атаке
+        //    total += fb.zoneDefense ? fb.zoneDefense.GetComponentsInChildren<CardView>().Length : 0; // Карты в защите
+        //}
         return total;                                               // Возвращаем сумму
     }
 
@@ -262,7 +306,7 @@ public class CombatController : MonoBehaviour
             if (playerWoundsText)                                  // Печатаем число ран
                 playerWoundsText.text = totalPlayerWounds.ToString();
 
-            yield return new WaitForSeconds(1.2f);               // Небольшая пауза, чтобы игрок увидел
+            yield return WOUND_ALERT_WAIT;               // Небольшая пауза, чтобы игрок увидел
 
             if (alertRoot) alertRoot.SetActive(false);           // Прячем алерт
             if (backgroundWound) backgroundWound.SetActive(false); // Прячем фон
@@ -280,7 +324,7 @@ public class CombatController : MonoBehaviour
                 fb.enemyView.ShowDeadOverlay(true);                 // Включить «dead»
             }
 
-            yield return new WaitForSeconds(0.5f);                 // Полсекунды паузы до полёта лута - для звука
+            yield return LOOT_DELAY_WAIT;                 // Полсекунды паузы до полёта лута - для звука
 
             // Пакуем onBefore: начислить ресурсы в инвентарь (как в событиях)
             System.Action before = () =>                        // Локальный колбэк «до посадки в инвентарь»
@@ -317,7 +361,7 @@ public class CombatController : MonoBehaviour
         ReturnAllCardsFromBlocksToDiscard();                      // Утилита: собрать и отправить в сброс
 
         // 1) Подержим «dead»-картинку ещё немного, чтобы игрок увидел результат
-        yield return new WaitForSeconds(0.5f);                 // Полсекунды паузы после полёта лута
+        yield return LOOT_DELAY_WAIT;                 // Полсекунды паузы после полёта лута
 
         // 3) Сформируем список блоков с погибшими врагами, чтобы удалить их с арены
         var deadBlocks = new List<FightingBlockUI>();          // Временный список для удаления
@@ -370,7 +414,9 @@ public class CombatController : MonoBehaviour
             CollectCardsUnder(fb.zoneAttack, temp);                   // Собрать из зоны атаки
             CollectCardsUnder(fb.zoneDefense, temp);                  // Собрать из зоны защиты
         }
-        hand.DiscardCards(temp);                                     // Отправить всё в сброс (рука сама уничтожит UI)
+        hand.DiscardCards(temp);
+        _cardsInZones = 0;                                                   // все карты со столов отправлены в сброс
+                                                                             // Отправить всё в сброс (рука сама уничтожит UI)
     }
 
     private void CollectCardsUnder(Transform zone, List<CardView> dst) // Собрать CardView из контейнера
@@ -386,11 +432,11 @@ public class CombatController : MonoBehaviour
     private IEnumerator EndCombatAndClose()                          // Закрытие экрана боя
     {
         //isResolving = true;                                          // Блокируем ввод
-        yield return new WaitForSeconds(0.15f);                      // Небольшая пауза «выдохнуть»
+        yield return END_PAUSE_WAIT;                      // Небольшая пауза «выдохнуть»
         HexMapController.Instance?.OnCombatEnded(true); // победили
         isRunning = false;
         if (combatScreen) combatScreen.SetActive(false);             // Прячем экран боя
-        if (deckHUD) {if (deckHUD.Buttons) deckHUD.Buttons.SetActive(true);}
+        if (deckHUD) { if (deckHUD.Buttons) deckHUD.Buttons.SetActive(true); }
         ModalGate.Release(this);                                     // Снимаем «замок» модалок/инпута
 
         // Здесь можно триггерить финальные модалки или продолжение сценария,
@@ -401,6 +447,6 @@ public class CombatController : MonoBehaviour
     // Список временно отключённых контроллеров карты, чтобы потом вернуть как было
     private readonly List<MonoBehaviour> _disabledHexInputs = new List<MonoBehaviour>(); // Храним, кого отключили
 
-  
+
 }
- 
+

@@ -36,6 +36,7 @@ public class HandPanelDropZone : MonoBehaviour, IDropHandler
             var attach = card.GetComponent<CombatCardAttachment>();        // Наш «ярлык» на карте
             if (attach && attach.owner)                                    // Если карта числится в другой зоне
                 attach.owner.OnCardRemovedFromZone(card, attach.zone);     // Сообщим блоку, что карта ушла
+            combatController.RefreshCombatUIAfterHandChanged();
         }
         // Перекладываем карту в руку
         card.transform.SetParent(container, worldPositionStays: false);

@@ -27,6 +27,13 @@ public class HexEventBadgeUI : MonoBehaviour
     public Color costTextColorFists = new Color(0.90f, 0.15f, 0.15f, 1f);  // 👊 красный фон → красный текст
     public Color costTextColorEye = new Color(0.20f, 0.50f, 1.00f, 1f);  // 👁 синий фон  → синий текст
 
+    // Корневой RectTransform бейджа, по которому меряем фактическую ширину
+    [SerializeField, HideInInspector] private RectTransform _measureRT;
+    // Базовый локальный масштаб корня (на момент инициализации)
+    [SerializeField, HideInInspector] private Vector3 _initialLocalScale = Vector3.one;
+    // Мировая ширина бейджа при базовом масштабе (калибровка)
+    [SerializeField, HideInInspector] private float _designWorldWidth = 0f;
+
     float _designWidth;                   // закешируем исходную ширину префаба
 
 
@@ -113,6 +120,18 @@ public class HexEventBadgeUI : MonoBehaviour
 
         if (!canvas) canvas = GetComponentInChildren<Canvas>(true);
         if (!scaler) scaler = canvas ? canvas.GetComponent<CanvasScaler>() : null;
+
+        //// Берём корневой RectTransform для измерения габаритов (предпочтительно Canvas)
+        //_measureRT = canvas ? canvas.GetComponent<RectTransform>()
+        //                    : transform as RectTransform;
+
+        //// Запоминаем исходный масштаб корня бейджа
+        //_initialLocalScale = transform.localScale;
+
+        //// Калибруем «дизайн‑ширину» в МИРОВЫХ юнитах — это устранит зависимость от пикселей/скейлера
+        //_designWorldWidth = ComputeWorldWidth(_measureRT);
+        //if (_designWorldWidth <= 0.0001f)
+        //    _designWorldWidth = fallbackDesignWidth; // последняя страховка
 
         // попробуем взять фактическую ширину корневого RectTransform (в единицах префаба)
         var rt = transform as RectTransform;
@@ -424,4 +443,45 @@ public class HexEventBadgeUI : MonoBehaviour
             transform.localScale = Vector3.one * k; // простой и надёжный путь
         }
     }
+//    {
+//    if (!hexRenderer || !_measureRT) return;
+
+//    // Мировая ширина гекса (по его спрайту); padding немного «ужимает» бейдж внутрь гекса
+//    float hexWorldWidth = hexRenderer.bounds.size.x * padding;
+
+//    // Если калибровки нет, пересчитаем на лету
+//    if (_designWorldWidth <= 0.0001f)
+//        _designWorldWidth = ComputeWorldWidth(_measureRT);
+
+//    // Коэффициент, который делает мировую ширину бейджа равной мировой ширине гекса
+//    float k = (_designWorldWidth > 0f) ? (hexWorldWidth / _designWorldWidth) : 1f;
+
+//    // ВНИМАНИЕ: не трогаем CanvasScaler — скейлим сам корень бейджа,
+//    // чтобы не «размаживать» UI и не влиять на другие элементы.
+//    transform.localScale = _initialLocalScale* k;
+//}
+
+private static float ComputeWorldWidth(RectTransform rt)
+    {
+        if (!rt) return 0f;
+        var corners = new Vector3[4];
+        rt.GetWorldCorners(corners);
+        // 0 = LB, 1 = LT, 2 = RT, 3 = RB (для стандартной ориентации)
+        return Vector3.Distance(corners[0], corners[3]); // ширина по нижнему ребру
+    }
+
+#if UNITY_EDITOR
+    // Чтобы при настройке префаба в Editor Scene ширина пересчитывалась без Play
+    private void OnValidate()
+    {
+        if (!Application.isPlaying)
+        {
+            if (!canvas) canvas = GetComponentInChildren<Canvas>(true);
+            _measureRT = canvas ? canvas.GetComponent<RectTransform>()
+                                : transform as RectTransform;
+            _initialLocalScale = Vector3.one;
+            _designWorldWidth = ComputeWorldWidth(_measureRT);
+        }
+    }
+#endif
 }

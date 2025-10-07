@@ -2,9 +2,9 @@
 using System;                                            // Для Action коллбеков
 using System.Collections;                                 // ДЛЯ IEnumerator (исправляет вашу ошибку про IEnumerator<T>)
 using System.Collections.Generic;                         // Для List<T>
+using TMPro;                                              // На случай, если в res_1 есть TMP-текст
 using UnityEngine;                                        // Базовые Unity-типы
 using UnityEngine.UI;                                     // Для Image
-using TMPro;                                              // На случай, если в res_1 есть TMP-текст
 
 public class RewardPickupAnimator : MonoBehaviour
 {
@@ -29,6 +29,13 @@ public class RewardPickupAnimator : MonoBehaviour
     public RectTransform handRightAnchor;            // Якорь правого края панели руки (сюда садятся)
     public GameObject cardIconPrefab;                // Префаб визуала карты для полёта (укажите UICard.prefab)
 
+
+    // === Пул объектов UI ===
+    [Header("Pooling")]
+    [SerializeField] private int resIconPrewarm = 8;   // предсоздание иконок ресурсов
+    [SerializeField] private int cardIconPrewarm = 4;  // предсоздание «иконок карт»
+    private readonly Queue<RewardItemUI> _poolResIcons = new Queue<RewardItemUI>(64); // пул ресурсов
+    private readonly Queue<UnityEngine.GameObject> _poolCardIcons = new Queue<UnityEngine.GameObject>(16); // пул карт
     [Header("Timing")]
     public float phase1Time = 1.35f;                      // Длительность фазы 1: старт → центр
     public float phase2Time = 1.30f;                      // Длительность фазы 2: центр → правая полка
@@ -86,7 +93,60 @@ public class RewardPickupAnimator : MonoBehaviour
         _uiCam = (rootCanvas && rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
             ? rootCanvas.worldCamera
             : null;                                       // Для Overlay камера null
+        PrewarmPools(); // предсоздадим объекты пула PrewarmPools();
     }
+
+    // --- Хелперы пула ---
+    private RewardItemUI GetPooledResIcon()
+    {
+        var ui = _poolResIcons.Count > 0 ? _poolResIcons.Dequeue() : Instantiate(res1Prefab, fxParent);
+        if (ui) { ui.transform.SetParent(fxParent, false); ui.gameObject.SetActive(true); }
+        return ui;
+    }
+    private void ReleaseResIcon(RewardItemUI ui)
+    {
+        if (!ui) return;
+        if (ui.gameObject.activeSelf) ui.gameObject.SetActive(false);
+        ui.transform.SetParent(fxParent, false);
+        _poolResIcons.Enqueue(ui);
+    }
+    private void ReleaseResIconByRT(RectTransform rt)
+    {
+        if (!rt) return;
+        var ui = rt.GetComponent<RewardItemUI>() ?? rt.GetComponentInParent<RewardItemUI>();
+        if (ui) ReleaseResIcon(ui);
+    }
+    private UnityEngine.GameObject GetPooledCardIcon()
+    {
+        var go = _poolCardIcons.Count > 0 ? _poolCardIcons.Dequeue() : Instantiate(cardIconPrefab, fxParent);
+        if (go) { go.transform.SetParent(fxParent, false); go.SetActive(true); }
+        return go;
+    }
+    private void ReleaseCardIcon(UnityEngine.GameObject go)
+    {
+        if (!go) return;
+        go.SetActive(false);
+        go.transform.SetParent(fxParent, false);
+        _poolCardIcons.Enqueue(go);
+    }
+    private void PrewarmPools()
+    {
+        for (int i = 0; i < resIconPrewarm; i++)
+        {
+            var ui = GetPooledResIcon();
+            ui.gameObject.SetActive(false);
+            _poolResIcons.Enqueue(ui);
+        }
+        for (int i = 0; i < cardIconPrewarm; i++)
+        {
+            var go = GetPooledCardIcon();
+            go.SetActive(false);
+            _poolCardIcons.Enqueue(go);
+        }
+    }
+
+
+
 
     /// Публичная точка входа: проиграть анимацию для списка ресурсных наград
     public void PlayForRewards(HexTile tile, List<EventSO.Reward> rewards, Action onBeforeInventoryApply, Action onAfterDone)
@@ -234,7 +294,7 @@ public class RewardPickupAnimator : MonoBehaviour
     {
         if (!tile || !icon || !res1Prefab || !fxParent) yield break;               // Защита от null
 
-        var ui = Instantiate(res1Prefab, fxParent);                                 // Создаём летящую иконку
+        var ui = GetPooledResIcon();                                 // Создаём летящую иконку
         var rt = ui.transform as RectTransform;                                     // Берём RectTransform
         ui.gameObject.SetActive(true);                                              // Включаем
 
@@ -265,7 +325,7 @@ public class RewardPickupAnimator : MonoBehaviour
         float tPhaseB = (phase2TimeDirect > 0f) ? phase2TimeDirect : 0.45f;         // Длительность B (наглядная)
         yield return Tween(rt, center, invPos, 1.5f, 1.0f, tPhaseB);                // Фаза B: до слота (уменьшение)
 
-        if (rt) Destroy(rt.gameObject);                                             // Убираем летящую иконку
+        if (rt) ReleaseResIconByRT(rt);                                             // Убираем летящую иконку
     }
     // Партия «восстановлений» (награда): из тайла → центр → левый верх (playerStatsAnchor)
     public void PlayStatRestoreBatch(HexTile tile,
@@ -390,7 +450,7 @@ public class RewardPickupAnimator : MonoBehaviour
         if (!res1Prefab || !fxParent || icon == null) yield break;
 
         // Создаём временный экземпляр
-        var ui = Instantiate(res1Prefab, fxParent);           // инстанс RewardItemUI
+        var ui = GetPooledResIcon();           // инстанс RewardItemUI
         var rt = ui.transform as RectTransform;               // его RectTransform
         ui.gameObject.SetActive(true);                        // включаем
 
@@ -418,7 +478,7 @@ public class RewardPickupAnimator : MonoBehaviour
         yield return Tween(rt, mid, to, 1.5f, 1.0f, tPhaseB);
 
         // Удаляем временную иконку
-        if (rt) Destroy(rt.gameObject);
+        if (rt) ReleaseResIconByRT(rt);
     }
 
     // Вспомогалки выбора спрайта (по единому индексу 0..3)
@@ -523,7 +583,7 @@ public class RewardPickupAnimator : MonoBehaviour
         System.Action onFinish                                                      // Коллбек по завершении полёта
     )
     {
-        var go = Instantiate(cardIconPrefab, fxParent);                             // Инстанциируем визуал карты (например, UICard.prefab)
+        var go = GetPooledCardIcon();                             // Инстанциируем визуал карты (например, UICard.prefab)
         var rt = go.transform as RectTransform;                                     // Берём RectTransform
         go.SetActive(true);                                                         // Включаем объект
         rt.anchoredPosition = start;                                                // Ставим в стартовую позицию
@@ -541,7 +601,8 @@ public class RewardPickupAnimator : MonoBehaviour
         float tPhaseB = (phase2TimeDirect > 0f) ? phase2TimeDirect : phase2Time;    // Выбираем длительность второй фазы (наглядную)
         yield return Tween(rt, mid, end, 1.5f, 1.0f, tPhaseB);                       // Фаза B: до правого края, масштаб 1.5→1.0
 
-        if (rt) Destroy(rt.gameObject);                                             // Удаляем временный визуал
+        if (rt) ReleaseResIconByRT(rt);                                             // Удаляем временный визуал
+        ReleaseCardIcon(go);      // ← всегда вернуть в пул, НЕ парентить в руку
         onFinish?.Invoke();                                                         // Сообщаем "этот перелёт завершён"
     }
 
@@ -698,7 +759,7 @@ public class RewardPickupAnimator : MonoBehaviour
         if (!startAnchor || !icon || !res1Prefab || !fxParent)        // Проверка ссылок
             yield break;                                              // Выходим, если чего-то нет
 
-        var ui = Instantiate(res1Prefab, fxParent);                   // Создаём «летящую» иконку (RewardItemUI)
+        var ui = GetPooledResIcon();                   // Создаём «летящую» иконку (RewardItemUI)
         var rt = ui.transform as RectTransform;                       // Берём RectTransform
         ui.gameObject.SetActive(true);                                // Включаем объект
 
@@ -732,7 +793,7 @@ public class RewardPickupAnimator : MonoBehaviour
         float tPhaseB = (phase2TimeDirect > 0f) ? phase2TimeDirect : phase2Time; // Длительность В-фазы
         yield return Tween(rt, center, invPos, 1.5f, 1.0f, tPhaseB);   // Фаза B: центр → слот (scale 1.5 → 1)
 
-        if (rt) Destroy(rt.gameObject);                                // Удаляем «летящую» иконку
+        if (rt) ReleaseResIconByRT(rt);                                // Удаляем «летящую» иконку
         yield break;                                                   // Готово
     }
 }

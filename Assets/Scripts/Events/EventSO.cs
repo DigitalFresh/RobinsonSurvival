@@ -16,7 +16,7 @@ public class EventSO : ScriptableObject // ScriptableObject — контейне
     public string eventName;                   // Отображаемое имя события
     [TextArea] public string description;      // Описание (для всплывающих окон)
     public Sprite icon;                        // Иконка события (когда гекс открыт)
-    public HexType hexType = HexType.Event;    // Тип гекса: чаще всего Event (по умолчанию)
+  //  public HexType hexType = HexType.Event;    // Тип гекса: чаще всего Event (по умолчанию)
 
     [Header("Классификация")]                  // Категория/флаги
     public bool isCombat;                      // Это бой?

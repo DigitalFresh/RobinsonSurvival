@@ -28,7 +28,15 @@ public class HexMapController : MonoBehaviour
         Instance = this;
         // Сохраняем ссылку на текущий объект, чтобы был доступ из любого места в коде через HexMapController.Instance
     }
-
+    // Очистить реестр гексов (когда пересобираем карту)
+    public void ClearRegistry()
+    {
+        // Сбросим словарь, чтобы старые ссылки не мешали и не висели в памяти
+        // Новые тайлы будут зарегистрированы AdventureBuilder'ом
+        var field = typeof(HexMapController).GetField("hexMap", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var dict = field?.GetValue(this) as System.Collections.IDictionary;
+        dict?.Clear();
+    }
     // Регистрируем гекс в словаре
     public void RegisterHex(HexTile tile)
     {
@@ -137,6 +145,16 @@ public class HexMapController : MonoBehaviour
             RevealNeighbors(startTile.x, startTile.y);        // Открываем соседей старта по правилам DD
 
         }
+    }
+
+    public void PlacePlayerAtStart(HexTile startTile) // расстановка игрока при старте
+    {
+        if (playerPawn == null) return;                       // Нет фишки — выходим
+
+        playerPawn.PlaceAt(startTile.x, startTile.y); // Ставим фишку игрока
+        //startTile.type = HexType.Empty;
+        startTile.Reveal();                               // Открываем клетку старта
+        RevealNeighbors(startTile.x, startTile.y);        // Открываем соседей старта по правилам DD
     }
 
     /// Проверить соседние тайлы и, если есть агрессивный бой — запустить его
