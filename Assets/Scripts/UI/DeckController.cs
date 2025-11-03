@@ -3,7 +3,7 @@ using UnityEngine;                                // MonoBehaviour, Debug, Rando
 
 // Контроллер колоды: draw/discard хранят CardInstance (НЕ CardSO)
 // Отвечает за стартовую сборку, перетасовку, добор и сброс.
-public class DeckController : MonoBehaviour
+public class DeckController : MonoBehaviour, IDeckPresetConsumer
 {
     [Header("Starting deck (defs)")]
     public List<CardDef> startingDeckDefs = new(); // Ассеты CardDef, из которых соберём стартовую колоду (можно дубликаты)
@@ -19,6 +19,8 @@ public class DeckController : MonoBehaviour
     // Событие «кучи изменились» — удобно для обновления UI
     public event System.Action OnPilesChanged;    // Подписываются HandController и счётчики UI
 
+    public event System.Action OnDeckReshuffled; // подписка внешних систем - перетасовали колоду
+
     // Доступ к размерам стопок (для UI)
     public int DrawCount => drawPile.Count;     // Сколько карт в draw
     public int DiscardCount => discardPile.Count;  // Сколько карт в discard
@@ -30,6 +32,70 @@ public class DeckController : MonoBehaviour
         RaisePilesChanged();                      // Сообщаем подписчикам
         // Стартовую руку раздаёт HandController (чтобы всё было в одном месте UI)
     }
+
+    /// Применить пресет колоды: полностью пересобрать draw/discard из пресета,
+    /// опционально перетасовать draw, оповестить UI через OnPilesChanged.
+    /// ВАЖНО: тут не вызываем OnDeckReshuffled — это не «боевой» reshuffle, а смена этапа.
+    public void ApplyDeckPreset(DeckPreset preset)
+    {
+        ApplyDeckPreset(preset, shuffle: true, alsoUpdateStartingDefs: false);
+    }
+
+    // Расширенная версия с параметрами:
+    /// shuffle — перетасовать ли новую колоду (обычно да);
+    /// alsoUpdateStartingDefs — синхронизировать ли startingDeckDefs для отладки/сейвов.
+    public void ApplyDeckPreset(DeckPreset preset, bool shuffle, bool alsoUpdateStartingDefs)
+    {
+        // Защита от null: если пресет не задан — просто очистим колоду.
+        // Это позволяет «начать с пустой колоды», если вдруг понадобится.
+        // (Можно сделать ранний return, но явная очистка даёт предсказуемое состояние.)
+
+        // 1) Полностью очищаем runtime-стопки: и добор, и сброс
+        drawPile.Clear();          // всё, что было в draw, выбрасываем
+        discardPile.Clear();       // сброс — тоже чистый
+
+        // 2) Если есть пресет — переносим из него карты в drawPile
+        if (preset != null && preset.cards != null)
+        {
+            for (int i = 0; i < preset.cards.Count; i++)        // перебираем записи пресета
+            {
+                var entry = preset.cards[i];                    // элемент: (CardDef, count)
+                if (entry == null || entry.card == null) continue; // пропускаем пустые
+                var cnt = Mathf.Max(0, entry.count);            // отрицательные → 0
+
+                for (int k = 0; k < cnt; k++)                   // кладём указанное число экземпляров
+                {
+                    drawPile.Add(new CardInstance(entry.card)); // новая «живая» карта на верх draw
+                }
+            }
+        }
+
+        // 3) По желанию — перетасовываем draw
+        if (shuffle) Shuffle(drawPile);                         // стандартный Фишер–Йейтс
+
+        // 4) При необходимости — синхронизируем стартовый список (для инспектора/сейвов)
+        if (alsoUpdateStartingDefs)
+        {
+            startingDeckDefs.Clear();                           // очищаем дефы для отладки
+            if (preset != null && preset.cards != null)
+            {
+                for (int i = 0; i < preset.cards.Count; i++)
+                {
+                    var entry = preset.cards[i];
+                    if (entry == null || entry.card == null) continue;
+                    var cnt = Mathf.Max(0, entry.count);
+                    for (int k = 0; k < cnt; k++)
+                        startingDeckDefs.Add(entry.card);       // отражаем состав в инспекторе
+                }
+            }
+        }
+
+        // 5) ВАЖНО: не трогаем OnDeckReshuffled — reshuffle-штраф за еду/воду не должен срабатывать
+        // при смене приключения. Достаточно сообщить UI, что стопки изменились.
+        RaisePilesChanged();                                    // уведомляем все подписчики UI
+    }
+
+
 
     // Собрать drawPile из списка CardDef
     public void BuildFromStartingDefs()
@@ -98,6 +164,7 @@ public class DeckController : MonoBehaviour
         drawPile.AddRange(discardPile);           // Добавляем всё к draw
         discardPile.Clear();                      // Очищаем discard
         Shuffle(drawPile);                        // Тасуем draw
+        OnDeckReshuffled?.Invoke();             // ← СООБЩАЕМ о перетасовке
         RaisePilesChanged();                      // Уведомляем UI
     }
 
@@ -124,6 +191,17 @@ public class DeckController : MonoBehaviour
             if (ci != null) drawPile.Add(ci);
         RaisePilesChanged();
     }
+
+    //public void RemoveFromGame(CardInstance inst)
+    //{
+    //    if (inst == null) return;
+    //    bool removed = false;
+    //    removed |= drawPile.Remove(inst);
+    //    removed |= discardPile.Remove(inst);
+    //    removed |= hand.Remove(inst);
+    //    if (removed) OnPilesChanged?.Invoke();
+    //}
+
 
     // Хелпер для оповещения
     private void RaisePilesChanged() => OnPilesChanged?.Invoke(); // Вызов события

@@ -497,18 +497,25 @@ public class EventEditorWindow : EditorWindow
             for (int i = 0; i < rewards.arraySize; i++)
             {
                 var el = rewards.GetArrayElementAtIndex(i);
-                float hEl = RewardElementHeight(el); // тот же хелпер, что и для Simple
+                float hEl = RewardElementHeight(el);                // уже есть хелпер
                 var area = new Rect(rect.x, y, w, hEl);
 
-                // Рисуем карточку награды
+                // 1) Отрисуем карточку награды
                 DrawRewardElement(area, el);
 
-                // Кнопка удалить (в правом верхнем углу элемента)
-                var btnRect = new Rect(area.xMax - 22f, area.y + 2f, 20f, line);
+                // 2) Кнопка удаления в правом верхнем углу элемента
+                var line1 = EditorGUIUtility.singleLineHeight;
+                var btnRect = new Rect(area.xMax - 22f, area.y + 2f, 20f, line1);
                 if (GUI.Button(btnRect, "×"))
                 {
+                    // Для сериализованных массивов важно сразу применить изменения,
+                    // чтобы лэйаут не поехал и элемент реально исчез из массива
+                    Undo.RecordObject(rewards.serializedObject.targetObject, "Remove Reward");
                     rewards.DeleteArrayElementAtIndex(i);
-                    break; // прерываем, чтобы не рисовать «сместившиеся» индексы
+                    rewards.serializedObject.ApplyModifiedProperties();
+                    GUI.changed = true;              // подсказка редактору «сохранить»
+                    GUIUtility.ExitGUI();            // мгновенно перерисуем окно и выйдем из текущего IMGUI цикла
+                    return;                          // выходим из метода DrawRewardsInline
                 }
 
                 y += hEl + 4f;

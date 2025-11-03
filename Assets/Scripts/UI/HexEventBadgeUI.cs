@@ -27,6 +27,21 @@ public class HexEventBadgeUI : MonoBehaviour
     public Color costTextColorFists = new Color(0.90f, 0.15f, 0.15f, 1f);  // 👊 красный фон → красный текст
     public Color costTextColorEye = new Color(0.20f, 0.50f, 1.00f, 1f);  // 👁 синий фон  → синий текст
 
+    // ================== BARRIERS: UI на бейдже ==================
+    [Header("Barriers (optional)")]
+    [SerializeField] private GameObject barriersPanel;                     // корневая панель
+    [SerializeField] private UnityEngine.UI.Image[] barrierSlots = new UnityEngine.UI.Image[3]; // 3 слота
+    [SerializeField] private Sprite bar1Sprite;                            // спрайт синей фишки (+1)
+    [SerializeField] private Sprite bar3Sprite;                            // спрайт оранжевой (+3)
+
+    [Header("Amount font sizes")]
+    [SerializeField] private int amountFontSmall = 40;   // для значений ≥ 10
+    [SerializeField] private int amountFontLarge = 62;   // для значений < 10
+    [SerializeField] private int amountSwitchThreshold = 10;
+
+    // Текущая суммарная «стоимость» барьеров на этом гексе, полученная через SetBarriers(...)
+    private int _barrierTotal = 0;
+
     // Корневой RectTransform бейджа, по которому меряем фактическую ширину
     [SerializeField, HideInInspector] private RectTransform _measureRT;
     // Базовый локальный масштаб корня (на момент инициализации)
@@ -66,6 +81,11 @@ public class HexEventBadgeUI : MonoBehaviour
     public Sprite combatSprite_Normal;
     public Sprite combatSprite_Aggressive;
     public GameObject enemy_ark;
+
+    [Header("Combat title colors")]
+    [SerializeField] private Color titleColorAggressive = Color.white;                 // агрессивный бой → белый
+    [SerializeField] private Color titleColorNonAggressive = new(0.90f, 0.15f, 0.15f); // НЕагрессивный (false) → красный
+    [SerializeField] private Color titleColorTimid = new(1.00f, 0.55f, 0.75f);
 
     // 12) Attack — цифра/иконка атаки врага (для боя, на будущее)
     // 13) Lifes — цифра/иконка жизней врага (для боя, на будущее)
@@ -212,8 +232,10 @@ public class HexEventBadgeUI : MonoBehaviour
         }
         // цвет текста Amount по типу стоимости ---
         if (isSimple && Amount)                                              // Если простое событие и есть текст
+        {
             Amount.color = GetCostTextColor(ev.mainCostType);                // Выставить цвет
-
+            if (isSimple) ApplyEffectiveCost();
+        }
         // hex_choose — только для события с выбором
         if (hex_choose)
         {
@@ -251,7 +273,7 @@ public class HexEventBadgeUI : MonoBehaviour
             // 1.1) Картинка — используем спрайт врага вместо icon события
             if (picture)
             {
-                picture.sprite = (e && e.sprite) ? e.sprite : ev.icon;       // Если у врага нет спрайта — фоллбэк на icon события
+                picture.sprite = (ev.icon != null) ? ev.icon : e.sprite;       // Если у врага нет спрайта — фоллбэк на icon события
                 picture.enabled = (picture.sprite != null);                  // Включаем, если есть что рисовать
             }
 
@@ -301,6 +323,18 @@ public class HexEventBadgeUI : MonoBehaviour
             SafeEnable(shield, false);                                       // Прячем щит
             if (Armor) { Armor.text = ""; Armor.gameObject.SetActive(false); } // Прячем текст брони
             SafeEnable(enemy_ark, false);                                    // Прячем счётчик врагов
+        }
+
+        if (ev.isCombat && Title)
+        {
+            bool timidByPreview = IsTimidPreview(ev);      // см. хелпер ниже
+            if (timidByPreview) Title.color = titleColorTimid;
+            else if (!ev.isAggressiveCombat) Title.color = titleColorNonAggressive;
+            else Title.color = titleColorAggressive;
+        }
+        else
+        {
+            if (Title) Title.color = Color.white; // для не боя — по умолчанию белый
         }
 
 
@@ -380,6 +414,25 @@ public class HexEventBadgeUI : MonoBehaviour
             if (ev.isChoice) Choose_description.text = ev.description ?? "";
         }
 
+        if (ev.isCombat)
+        {
+            if (res_Panel) res_Panel.SetActive(true);                       // включаем панель
+            var uniq = CollectCombatLootResources(ev, 4);                    // забираем ресурсы из loot
+            for (int i = 0; i < rewardItems.Length; i++)
+            {
+                var slot = rewardItems[i];
+                if (!slot) continue;
+
+                if (i < uniq.Count && uniq[i] != null)
+                {
+                    slot.gameObject.SetActive(true);
+                    slot.Bind(uniq[i]);                                      // обычный биндинг
+                    if (slot.amountText) slot.amountText.gameObject.SetActive(false); // ЦИФРЫ НЕ ПОКАЗЫВАЕМ
+                }
+                else slot.gameObject.SetActive(false);
+            }
+        }
+
         // и наконец — показать
         SetVisible(true);
 
@@ -395,6 +448,39 @@ public class HexEventBadgeUI : MonoBehaviour
             default: return costTextColorHands;                            // ✋ → белый
         }
     }
+
+    /// <summary>Обновить отрисовку фишек на бейдже (вызывается из HexTile).</summary>
+    public void SetBarriers(System.Collections.Generic.IReadOnlyList<int> values)
+    {
+        if (barriersPanel == null || barrierSlots == null) return;
+
+        bool hasAny = values != null && values.Count > 0;
+        barriersPanel.SetActive(hasAny);
+
+        _barrierTotal = 0; // заново считаем сумму
+
+        for (int i = 0; i < barrierSlots.Length; i++)
+        {
+            var img = barrierSlots[i];
+            if (!img) continue;
+
+            if (hasAny && i < values.Count)
+            {
+                int v = values[i] >= 3 ? 3 : 1;   // нормализуем в 1 или 3
+                _barrierTotal += v;               // суммируем для цены
+                img.enabled = true;
+                img.sprite = (v == 3) ? bar3Sprite : bar1Sprite;
+            }
+            else
+            {
+                img.enabled = false;
+            }
+        }
+
+        // Если бейдж уже привязан к simple-событию — сразу обновим Amount
+        ApplyEffectiveCost();
+    }
+
 
     // =============== helpers ===============
 
@@ -419,6 +505,76 @@ public class HexEventBadgeUI : MonoBehaviour
         canvas.sortingLayerID = refRenderer.sortingLayerID;
         canvas.sortingLayerName = refRenderer.sortingLayerName;
         canvas.sortingOrder = refRenderer.sortingOrder + orderOffset;
+    }
+
+    // Перерисовать Amount с учётом барьеров, если это простое событие
+    private void ApplyEffectiveCost()
+    {
+        if (current == null || current.isChoice || current.isCombat) return; // только simple
+        int val = current.mainCostAmount + _barrierTotal;
+        if (Amount)
+        {
+            Amount.text = val.ToString();
+            ApplyAmountFontForValue(val);   // <-- размер шрифта по значению
+        }
+    }
+
+    // timid только у preview-врага (других НЕ проверяем)
+    private bool IsTimidPreview(EventSO ev)
+    {
+        var enemy = ev ? ev.GetPreviewEnemy() : null;                 // берём врага по previewEnemyIndex
+        if (!enemy || enemy.tags == null) return false;               // нет врага/тегов
+
+        for (int i = 0; i < enemy.tags.Count; i++)                    // проверяем TagDef.id
+        {
+            var t = enemy.tags[i];
+            if (t && !string.IsNullOrEmpty(t.id) &&
+                string.Equals(t.id, "Timid", System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    // Собираем уникальные ресурсы из EnemySO.loot по всем врагам (макс. maxKinds)
+    private System.Collections.Generic.List<EventSO.Reward>
+        CollectCombatLootResources(EventSO ev, int maxKinds)
+    {
+        var result = new System.Collections.Generic.List<EventSO.Reward>(maxKinds);
+        var seen = new System.Collections.Generic.HashSet<string>();       // ключ – resourceId/имя
+
+        if (!ev || ev.combatEnemies == null) return result;
+
+        for (int i = 0; i < ev.combatEnemies.Count && result.Count < maxKinds; i++)
+        {
+            var enemy = ev.combatEnemies[i];
+            if (!enemy || enemy.loot == null) continue;
+
+            // EnemySO.loot — List<LootEntry> { ResourceDef resource; int amount; }  :contentReference[oaicite:5]{index=5}
+            for (int j = 0; j < enemy.loot.Count && result.Count < maxKinds; j++)
+            {
+                var e = enemy.loot[j];
+                if (e == null || e.resource == null) continue;
+
+                // ключ уникальности: resourceId если есть, иначе имя SO
+                string key = !string.IsNullOrEmpty(e.resource.resourceId)
+                            ? e.resource.resourceId
+                            : e.resource.name;
+                if (seen.Contains(key)) continue;
+
+                // приводим к EventSO.Reward (тип Resource); amount нам НЕ нужен (иконку показываем без цифры)
+                var r = new EventSO.Reward
+                {
+                    type = EventSO.RewardType.Resource,
+                    resource = e.resource,
+                    amount = e.amount,      // можно оставить фактическое; цифру всё равно скрываем
+                    icon = e.resource.icon  // на всякий случай
+                };
+
+                result.Add(r);
+                seen.Add(key);
+            }
+        }
+        return result;
     }
 
     /// Подгоняем размер бейджа под размеры гекса (ширину его спрайта)
@@ -468,6 +624,12 @@ private static float ComputeWorldWidth(RectTransform rt)
         rt.GetWorldCorners(corners);
         // 0 = LB, 1 = LT, 2 = RT, 3 = RB (для стандартной ориентации)
         return Vector3.Distance(corners[0], corners[3]); // ширина по нижнему ребру
+    }
+
+    private void ApplyAmountFontForValue(int value)
+    {
+        if (!Amount) return;
+        Amount.fontSize = (value >= amountSwitchThreshold) ? amountFontSmall : amountFontLarge;
     }
 
 #if UNITY_EDITOR

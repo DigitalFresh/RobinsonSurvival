@@ -16,10 +16,23 @@ public class InfoModalUI : MonoBehaviour
     // Список raycaster’ов, которые мы временно отключили (чтобы вернуть потом)
     private readonly List<Behaviour> _disabledSceneRaycasters = new();
 
+    public event System.Action OnClosed;   // подпишется ModalManager
+    public bool IsOpen => canvasGroup && canvasGroup.interactable;
+
     void Awake()
     {
         HideImmediate();
-        if (okButton) okButton.onClick.AddListener(Hide);
+        if (okButton)
+        {
+            okButton.onClick.RemoveAllListeners();
+            okButton.onClick.AddListener(HideAndNotify);
+        }
+    }
+
+    private void HideAndNotify()
+    {
+        Hide();                 // текущий метод скрытия (оставляем твою логику)
+        OnClosed?.Invoke();     // сообщаем подписчикам (ModalManager) о закрытии
     }
 
     // === Показ полноценных UICard (CardView) по CardDef ===
@@ -119,6 +132,23 @@ public class InfoModalUI : MonoBehaviour
 
         ModalGate.Acquire(this); // <— включаем глобальную блокировку
     }
+
+    public void Show (string message)
+    {
+        // Сообщение и показ окна
+        if (messageText) messageText.text = message ?? "";
+
+        // <<< важная строка: глушим «мировые» клики
+        //DisableSceneRaycasters();
+
+        canvasGroup.alpha = 1f;
+        canvasGroup.blocksRaycasts = true;  // само окно — интерактивно
+        canvasGroup.interactable = true;
+        gameObject.SetActive(true);
+
+        ModalGate.Acquire(this); // <— включаем глобальную блокировку
+    }
+
 
     public void Hide()
     {

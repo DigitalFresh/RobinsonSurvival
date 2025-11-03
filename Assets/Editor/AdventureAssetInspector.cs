@@ -60,39 +60,39 @@ public class AdventureAssetInspector : Editor
         EditorGUILayout.Space(10);
         if (GUILayout.Button("Применить к сцене (через AdventureLoader на сцене)"))
         {
-            // Ищем ЛОАДЕР ТОЛЬКО новым API:
-            var loader = Object.FindFirstObjectByType<AdventureLoader>(FindObjectsInactive.Include);
+            //// Ищем ЛОАДЕР ТОЛЬКО новым API:
+            //var loader = Object.FindFirstObjectByType<AdventureLoader>(FindObjectsInactive.Include);
 
-            // Если не нашли — предложим создать автоматически
-            if (!loader)
-            {
-                bool create = EditorUtility.DisplayDialog(
-                    "AdventureLoader не найден",
-                    "В сцене нет AdventureLoader. Добавить на новый GameObject?",
-                    "Добавить", "Отмена"
-                );
+            //// Если не нашли — предложим создать автоматически
+            //if (!loader)
+            //{
+            //    bool create = EditorUtility.DisplayDialog(
+            //        "AdventureLoader не найден",
+            //        "В сцене нет AdventureLoader. Добавить на новый GameObject?",
+            //        "Добавить", "Отмена"
+            //    );
 
-                if (create)
-                {
-                    var go = new GameObject("AdventureLoader");
-                    loader = go.AddComponent<AdventureLoader>();
-                    Undo.RegisterCreatedObjectUndo(go, "Create AdventureLoader");
-                }
-            }
+            //    if (create)
+            //    {
+            //        var go = new GameObject("AdventureLoader");
+            //        loader = go.AddComponent<AdventureLoader>();
+            //        Undo.RegisterCreatedObjectUndo(go, "Create AdventureLoader");
+            //    }
+            //}
 
-            if (loader)
-            {
-                Undo.RecordObject(loader, "Assign Adventure Asset");
-                loader.adventure = A;
-                EditorUtility.SetDirty(loader);
+            //if (loader)
+            //{
+            //    Undo.RecordObject(loader, "Assign Adventure Asset");
+            //    loader.adventure = A;
+            //    EditorUtility.SetDirty(loader);
 
-                // Вызываем билд сразу из инспектора
-                loader.BuildIntoScene();
-            }
-            else
-            {
-                EditorUtility.DisplayDialog("Не удалось применить", "AdventureLoader отсутствует и не был создан.", "Ок");
-            }
+            //    // Вызываем билд сразу из инспектора
+            //    loader.BuildIntoScene();
+            //}
+            //else
+            //{
+            //    EditorUtility.DisplayDialog("Не удалось применить", "AdventureLoader отсутствует и не был создан.", "Ок");
+            //}
         }
 
         serializedObject.ApplyModifiedProperties();

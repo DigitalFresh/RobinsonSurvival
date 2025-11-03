@@ -59,6 +59,19 @@ public class EventWindowUI : MonoBehaviour
     public EventWindowDropZone dropZone;         // Ссылка на зону, куда кладут карты
     public TextMeshProUGUI hintText;       // динамическая подсказка
 
+    // ================== BARRIERS: UI в окне события ==================
+    [Header("Barriers (optional)")]
+    [SerializeField] private GameObject barriersPanel;                     // панель в окне
+    [SerializeField] private UnityEngine.UI.Image[] barrierSlots = new UnityEngine.UI.Image[3];
+    [SerializeField] private Sprite bar1Sprite;
+    [SerializeField] private Sprite bar3Sprite;
+
+    [Header("Amount font sizes")]
+    [SerializeField] private int amountFontSmall = 40;   // когда значение >= 10
+    [SerializeField] private int amountFontLarge = 62;   // когда значение < 10
+    [SerializeField] private int amountSwitchThreshold = 10;
+
+
     private void Awake()                         // Инициализация при создании объекта
     {
         Instance = this;                         // Сохраняем ссылку на себя (простой синглтон)
@@ -85,7 +98,13 @@ public class EventWindowUI : MonoBehaviour
         iconImage.sprite = ev != null ? ev.icon : null;           // Ставим иконку (если есть)
 
         // главная стоимость
-        if (amountText) amountText.text = ev ? ev.mainCostAmount.ToString() : "0";
+        int effective = GetEffectiveMainCost();
+        if (amountText)
+        {
+            amountText.text = effective.ToString();
+            ApplyAmountFont(amountText, effective);     // <-- добавь эту строчку
+        }
+
         int costIdx = ev ? (int)ev.mainCostType : 0;
         if (hexBack && hexBackByCostType != null && hexBackByCostType.Length >= 3)
             hexBack.sprite = hexBackByCostType[costIdx];
@@ -94,14 +113,14 @@ public class EventWindowUI : MonoBehaviour
         //  цвет текста amount по типу стоимости ---
         if (amountText && ev != null)                                        // Если есть текст и валидное событие
             amountText.color = GetCostTextColor(ev.mainCostType);            // Поставить цвет
-        if (dropZone && ev != null)                             // Если зона дропа назначена и событие валидно
+
+        if (dropZone && ev != null)
         {
-            // Устанавливаем тип требования и нужное количество:
-            // ✋ — любые карты; 👊 — только красные; 👁 — только синие.
-            dropZone.SetupRequirementTyped(ev.mainCostType,     // Тип (Hands/Fists/Eye)
-            Mathf.Max(0, ev.mainCostAmount)); // Кол-во (на всякий случай >= 0)
+            // ✋/👊/👁 + требуемое количество = ЭФФЕКТИВНАЯ стоимость
+            dropZone.SetupRequirementTyped(ev.mainCostType, effective);
         }
 
+        DrawBarriers(tile != null ? tile.Barriers : null);
 
         // доп.стоимости – покажем до 3 значков
         for (int i = 0; i < adCostIcons.Length; i++)
@@ -184,6 +203,7 @@ public class EventWindowUI : MonoBehaviour
                 }
             }
 
+
             // выставим стартовую подсветку выбора (по умолчанию — левая)
             selectedAltIndex = 0;
             UpdateAltSelectionFrames();
@@ -222,7 +242,7 @@ public class EventWindowUI : MonoBehaviour
             case CostType.Fists: have = dropZone.currentFists; break;
             case CostType.Eye: have = dropZone.currentEye; break;
         }
-        mainOK = (have >= currentEvent.mainCostAmount);
+        mainOK = (have >= GetEffectiveMainCost());
 
         // 2) обязательные доп.стоимости (если additionalMandatory)
         bool addOK = true;
@@ -584,7 +604,12 @@ public class EventWindowUI : MonoBehaviour
             tile.UpdateVisual();                                                               // обновляем визуал
         }
         //Debug.Log(sourceTile);
-        var map = HexMapController.Instance;
+        var map = HexMapController.Instance
+                  ?? FindFirstObjectByType<HexMapController>(FindObjectsInactive.Include);
+        if (tile != null)
+        {
+            if (map) map.PopOneBarrierOnNeighbors(tile);
+        }
         if (map != null && map.playerPawn != null)
         {
             map.playerPawn.MoveTo(sourceTile);
@@ -631,27 +656,27 @@ public class EventWindowUI : MonoBehaviour
         HandController.Instance.DiscardCards(used);                // Передаём в контроллер руки — он удалит UI и запишет в discard
     }
 
-    // Превращаем тайл в «пустой», форсируем его обновление и перемещаем на него игрока
-    private void ResolveTileAndMovePlayer()
-    {
-        if (sourceTile == null) return;                            // Если тайл не задан — выходим
+    //// Превращаем тайл в «пустой», форсируем его обновление и перемещаем на него игрока
+    //private void ResolveTileAndMovePlayer()
+    //{
+    //    if (sourceTile == null) return;                            // Если тайл не задан — выходим
 
-        // По DD: после успешного розыгрыша событие удаляется, игрок перемещается на этот гекс
-        sourceTile.SetType(HexType.Empty);                         // Меняем тип на пустой
-        sourceTile.eventData = null;                               // Отвяжем данные события (больше нет события)
-        sourceTile.Reveal();                                       // Оставляем открытым (по логике DD)
+    //    // По DD: после успешного розыгрыша событие удаляется, игрок перемещается на этот гекс
+    //    sourceTile.SetType(HexType.Empty);                         // Меняем тип на пустой
+    //    sourceTile.eventData = null;                               // Отвяжем данные события (больше нет события)
+    //    sourceTile.Reveal();                                       // Оставляем открытым (по логике DD)
 
-        // ВАЖНО: сразу обновим визуал тайла, чтобы иконка события исчезла сразу после подтверждения
-        ForceTileVisualRefresh(sourceTile);
+    //    // ВАЖНО: сразу обновим визуал тайла, чтобы иконка события исчезла сразу после подтверждения
+    //    ForceTileVisualRefresh(sourceTile);
 
-        // Перемещаем игрока (используем уже существующую логику)
-        var map = HexMapController.Instance;
-        if (map != null && map.playerPawn != null)
-        {
-            map.playerPawn.MoveTo(sourceTile);                     // Двигаем фишку на тайл
-            map.RevealNeighbors(sourceTile.x, sourceTile.y);       // Открываем соседей новой позиции
-        }
-    }
+    //    // Перемещаем игрока (используем уже существующую логику)
+    //    var map = HexMapController.Instance;
+    //    if (map != null && map.playerPawn != null)
+    //    {
+    //        map.playerPawn.MoveTo(sourceTile);                     // Двигаем фишку на тайл
+    //        map.RevealNeighbors(sourceTile.x, sourceTile.y);       // Открываем соседей новой позиции
+    //    }
+    //}
 
     // Аккуратный способ принудительно обновить визуал тайла без зависимости от внутренних методов HexTile
     private void ForceTileVisualRefresh(HexTile tile)
@@ -668,4 +693,47 @@ public class EventWindowUI : MonoBehaviour
         if (altRewardA) altRewardA.SetAltSelection(selectedAltIndex == 0);
         if (altRewardB) altRewardB.SetAltSelection(selectedAltIndex == 1);
     }
+
+    private void DrawBarriers(System.Collections.Generic.IReadOnlyList<int> values)
+    {
+        if (barriersPanel == null || barrierSlots == null) return;
+
+        bool hasAny = values != null && values.Count > 0;
+        barriersPanel.SetActive(hasAny);
+
+        for (int i = 0; i < barrierSlots.Length; i++)
+        {
+            var img = barrierSlots[i];
+            if (!img) continue;
+
+            if (hasAny && i < values.Count)
+            {
+                int v = values[i];
+                img.enabled = true;
+                img.sprite = (v >= 3) ? bar3Sprite : bar1Sprite;
+            }
+            else
+            {
+                img.enabled = false;
+            }
+        }
+    }
+
+    // Итоговая стоимость для текущего события с учётом барьеров на тайле.
+    // Для simple: mainCostAmount + sum(barriers); для choice/combat — без модификаторов.
+    private int GetEffectiveMainCost()
+    {
+        if (currentEvent == null) return 0;
+        if (currentEvent.isChoice || currentEvent.isCombat) return currentEvent.mainCostAmount;
+        int barrier = (sourceTile != null) ? sourceTile.BarrierTotal : 0;
+        return Mathf.Max(0, currentEvent.mainCostAmount + barrier);
+    }
+
+    private void ApplyAmountFont(TMPro.TextMeshProUGUI tmp, int value)
+    {
+        if (!tmp) return;
+        // ≥10 — меньше шрифт, <10 — больше шрифт
+        tmp.fontSize = (value >= amountSwitchThreshold) ? amountFontSmall : amountFontLarge;
+    }
+
 }

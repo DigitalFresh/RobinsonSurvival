@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 875a8d18f7c34b94f9e606fe1a9dd06a, type: 3}
+  m_Name: ConfirmConsumeCostEffectDef
+  m_EditorClassIdentifier: Assembly-CSharp::ConfirmConsumeCostEffectDef
+  uiIcon: {fileID: 0}
+  uiDescription: 
+  catalogKey: consume_card
+  appendAutoRestoreLines: 1
+  hpIcon: {fileID: -7305143177857427097, guid: 715665c59cf2beb45883da4ef768a4ed, type: 3}
+  energyIcon: {fileID: -5564248608999137188, guid: 2fa7d103431a40f42b3b24bd651bda9c, type: 3}
+  waterIcon: {fileID: 8509550459451208454, guid: 3ab245f414a71854d868faa7d9a4bbfb, type: 3}
+  foodIcon: {fileID: -7832214784768987486, guid: 7719306bab9a4b94aa5bd3e3e51fd4f4, type: 3}

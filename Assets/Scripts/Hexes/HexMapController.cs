@@ -11,6 +11,8 @@ public class HexMapController : MonoBehaviour
     // Словарь, где ключ — это пара координат (x,y), а значение — ссылка на объект HexTile
     private Dictionary<(int x, int y), HexTile> hexMap = new Dictionary<(int, int), HexTile>();
 
+    private readonly HashSet<HexTile> _timidAwaitingCull = new HashSet<HexTile>();
+
     [Header("Player")]
     public PlayerPawn playerPawn;                            // Ссылка на фишку игрока (задай в инспекторе)
     public bool autoPlacePlayerAtStart = true;               // Флаг: ставить ли игрока автоматически при старте
@@ -23,10 +25,23 @@ public class HexMapController : MonoBehaviour
     private bool _combatRunning = false;               // Флаг: бой запущен, чтобы не стартовать повторно
     private HexTile _pendingCombatTile;                // Какой тайл «занят» боем (чтобы потом очистить и перейти)
 
+    // Сюда складываем ближайший агрессивный бой, найденный при раскрытии соседей
+    private HexTile _pendingAggressiveNear;
+
+    // --- PATHFINDING / MOVE STATE ---
+    private bool _pathMoveInProgress = false;           // Идёт ли сейчас пошаговое перемещение
+    private HexTile _lastHintTile;                      // Кому показывали подсказку в прошлый кадр
+
     private void Awake() // Вызывается при создании объекта в сцене
     {
         Instance = this;
         // Сохраняем ссылку на текущий объект, чтобы был доступ из любого места в коде через HexMapController.Instance
+    }
+
+    // ЕДИНЫЙ ФЛАГ «занятости» карты (идёт перемещение или бой)
+    public bool IsBusyForInput()
+    {
+        return _pathMoveInProgress || _combatRunning;  // true → клики/ховер блокируем
     }
     // Очистить реестр гексов (когда пересобираем карту)
     public void ClearRegistry()
@@ -71,27 +86,54 @@ public class HexMapController : MonoBehaviour
 
     public void RevealNeighbors(int x, int y) // Открыть соседей клетки (логика DD)
     {
-        foreach (var n in GetNeighbors(x, y)) n.Reveal();    // Открываем каждый соседний тайл
-        TryStartAggressiveCombatNear(x, y);                  // Проверяем соседей: есть ли агрессивный бой
+        foreach (var n in GetNeighbors(x, y))
+        {
+            n.Reveal();    // Открываем каждый соседний тайл
+            // Запомнить открытые timid-события рядом с игроком
+            if (n.eventData != null && EventHasTimid(n.eventData))
+                _timidAwaitingCull.Add(n);
+
+            // если среди соседей есть агрессивный бой — откладываем его на «после хода»
+            var ev = n.eventData;
+            if (ev != null && ev.isCombat && ev.isAggressiveCombat && ev.HasCombatEnemies())
+                if (_pendingAggressiveNear == null) _pendingAggressiveNear = n; // запоминаем первый
+        }
+
+        if (_pendingAggressiveNear != null && !_combatRunning) StartCoroutine(AfterMoveRevealAndMaybeAggressive());
+        //TryStartAggressiveCombatNear(x, y);                  // Проверяем соседей: есть ли агрессивный бой
     }
     public void OnHexClicked(HexTile tile) // Вызывается из HexTile.OnMouseDown
     {
-        
-        if (tile == null || playerPawn == null || ModalGate.IsBlocked) return;      // Защита от null
-        
-        // Правило DD: перемещаться можно на соседние проходимые клетки.
-        if (tile.type == HexType.Empty && playerPawn.CanMoveTo(tile))                      // Если цель — допустимый сосед  tile.type == HexType.Empty && 
-        {
-            playerPawn.MoveTo(tile);                       // Двигаем игрока и открываем соседей новой позиции
-            MapCameraFollow.Instance?.SetTarget(playerPawn.transform);  // Обновляем цель (на всякий случай)
-            //MapCameraFollow.Instance?.SnapToTarget();                   // Центрируем сразу (или можно без Snap — тогда сгладится)
+
+        // Блокируем ЛЮБЫЕ клики, если карта занята (движение по пути/бой/модал)
+        if (tile == null || playerPawn == null || ModalGate.IsBlocked || IsBusyForInput())
             return;
-            // Здесь позже: если type == Event — запуск окна события / боя / выбора по правилам DD
+
+        // --- ДЛИННЫЙ ХОД ПО ПУТИ ТОЛЬКО ПО ОТКРЫТОМУ ПУСТОМУ ПОЛЮ ---
+        if ((tile.type == HexType.Empty || tile.type == HexType.Exit)
+            && tile.isRevealed && tile.isPassable && !_pathMoveInProgress)
+        {
+            CullPendingTimidIfAnyAndNotTarget(tile);
+            var cur = GetHex(playerPawn.x, playerPawn.y);          // где стоит фишка
+            var path = FindPath(cur, tile);                        // пробуем построить маршрут
+            if (path != null && path.Count >= 2)                   // есть путь (2+ клетки)
+            {
+                StartCoroutine(ExecutePathMoveWithCost(path));     // запускаем корутину движения
+                return;
+            }
+            // если пути нет — ничего не делаем (на ховере уже будет «X»)
         }
+
         if (tile.type == HexType.Event && tile.isRevealed && playerPawn.CanMoveTo(tile))
         {
             if (tile.eventData != null)                                 // Если есть данные события
             {
+                // Если это timid-событие и игрок кликает по нему — НЕ очищаем (игрок вступил во взаимодействие)
+                if (tile.eventData != null && EventHasTimid(tile.eventData))
+                    _timidAwaitingCull.Remove(tile);
+                else
+                    CullPendingTimidIfAnyAndNotTarget(tile);
+
                 if (tile.eventData.isCombat && tile.eventData.HasCombatEnemies()) // Это событие — бой?
                 {
                     // Неагрессивный бой — старт по клику.
@@ -118,6 +160,90 @@ public class HexMapController : MonoBehaviour
             return;                                                      // Ждём решения игрока
         }
     }
+
+    private System.Collections.IEnumerator ExecutePathMoveWithCost(List<HexTile> path)
+    {
+        _pathMoveInProgress = true;                            // блокируем клики по карте
+
+        // 1) считаем стоимость и анимируем «колода → центр → сброс»
+        int steps = Mathf.Max(0, path.Count - 1);              // переходы между клетками
+        int cardsCost = ComputeMoveCostInCards(steps);         // стоимость в картах
+
+        // найдём DeckController и HUD (иконки нам нужны для анимации)
+        var deck = FindFirstObjectByType<DeckController>(FindObjectsInactive.Include);
+        var hud = FindFirstObjectByType<DeckHUD>(FindObjectsInactive.Include);
+
+        // Анимация (если RewardPickupAnimator умеет; иначе — фолбэк)
+        bool animDone = false;
+        System.Action onAnimDone = () => { animDone = true; };
+
+        if (cardsCost > 0 && deck != null)
+        {
+            // фактически перекладываем карты: draw → discard (и уведомляем UI)
+            var moved = new List<CardInstance>(cardsCost);
+            for (int i = 0; i < cardsCost; i++)
+            {
+                var one = deck.DrawOne();                      // берём верхнюю из колоды (с автоперетасовкой из сброса)
+                if (one == null) break;                        // кончились — останавливаемся
+                deck.Discard(one);                             // положили в сброс
+                moved.Add(one);                                // просто для отладки/счёта
+            }
+
+            // попытка красивой анимации через аниматор (если он есть и HUD задан)
+            if (RewardPickupAnimator.Instance != null && hud != null && hud.deckIcon != null && hud.discardIcon != null)
+            {
+                // предполагаемый API аниматора; если его пока нет — просто выполнится фолбэк ниже
+                RewardPickupAnimator.Instance.PlayDeckToDiscard(
+                    moved,
+                    hud.deckIcon.rectTransform,
+                    hud.discardIcon.rectTransform,
+                    onAnimDone);
+            }
+            else
+            {
+                // нет аниматора/иконок — анимацию пропускаем
+                animDone = true;
+            }
+        }
+        else animDone = true;                                   // ход «бесплатный» или нет колоды — сразу готово
+
+        // ждём конца анимации (если была)
+        while (!animDone) yield return null;
+
+        // 2) двигаем фишку пошагово по пути
+        //    (перемещение делает сам PlayerPawn, по одному тайлу; между шагами ждём корутину)
+        playerPawn.BeginMoveBatch();                              // 1) включили походку ОДИН раз
+
+        for (int i = 1; i < path.Count; i++)                     // идём по всем сегментам пути
+        {
+            var next = path[i];                                  // следующий гекс по пути
+
+            playerPawn.MoveToInPath(next);                       // 2) шаг ВНУТРИ БАТЧА (аниматор тут не трогаем)
+
+            // Ждём окончания шага (корутина MovePawnSmooth сама двигает трансформ)
+            while ((playerPawn.transform.position - next.transform.position).sqrMagnitude > 0.0001f)
+                yield return null;
+
+            yield return null;                                   // маленькая пауза между сегментами (по желанию)
+        }
+
+        playerPawn.EndMoveBatch();
+
+        // 3) финал
+        _pathMoveInProgress = false;                            // разблокируем клики
+
+        // Если добрались до выхода — запускаем «финиш-флоу»
+        // Финальная клетка пути
+        var goal = (path != null && path.Count > 0) ? path[path.Count - 1] : null;
+
+        // ⬇️ Показать соседей И (при необходимости) предупредить об агрессивном бое
+        if (goal) RevealNeighbors(goal.x, goal.y); // StartCoroutine(AfterMoveRevealAndMaybeAggressive(goal));
+
+        // Переход на EXIT — как и раньше
+        if (goal && goal.type == HexType.Exit)
+            StartCoroutine(HandleExitReached(goal));
+    }
+
     public void PlacePlayerAtStartAuto(int gridWidth, int gridHeight) // Авторасстановка игрока при старте
     {
         if (playerPawn == null) return;                       // Нет фишки — выходим
@@ -157,29 +283,53 @@ public class HexMapController : MonoBehaviour
         RevealNeighbors(startTile.x, startTile.y);        // Открываем соседей старта по правилам DD
     }
 
-    /// Проверить соседние тайлы и, если есть агрессивный бой — запустить его
-    private void TryStartAggressiveCombatNear(int x, int y)
+    ///// Проверить соседние тайлы и, если есть агрессивный бой — запустить его
+    //private void TryStartAggressiveCombatNear(int x, int y)
+    //{
+    //    // Если бой уже идёт — ничего не делаем
+    //    if (_combatRunning) return;
+
+    //    // Переберём всех соседей
+    //    foreach (var n in GetNeighbors(x, y))
+    //    {
+    //        // Пропускаем пустые/сломанные клетки
+    //        if (!n || n.eventData == null) continue;
+
+    //        var ev = n.eventData;                                  // Берём EventSO
+    //        // Нас интересуют только события-бои с флагом агрессии и валидными врагами
+    //        if (ev.isCombat && ev.isAggressiveCombat && ev.HasCombatEnemies())
+    //        {
+    //            // Запускаем бой на этом тайле и выходим (только один бой за раз)
+    //            StartCombatOnTile(n);
+    //            return;
+    //        }
+    //    }
+    //}
+
+    // ================== BARRIERS: «распыление» снятия фишек на соседей ==================
+    /// <summary>
+    /// Снять по одной фишке (если есть) на всех соседних гексах указанного центра,
+    /// НО только на тех, которые уже раскрыты (isRevealed == true).
+    /// </summary>
+    public void PopOneBarrierOnNeighbors(HexTile center)
     {
-        // Если бой уже идёт — ничего не делаем
-        if (_combatRunning) return;
+        if (center == null) return;                       // защита: нет центрального гекса — нечего делать
 
-        // Переберём всех соседей
-        foreach (var n in GetNeighbors(x, y))
+        var neigh = GetNeighbors(center.x, center.y);     // получаем список соседей (твой текущий API)
+        if (neigh == null) return;                        // защита: нет соседей
+
+        for (int i = 0; i < neigh.Count; i++)
         {
-            // Пропускаем пустые/сломанные клетки
-            if (!n || n.eventData == null) continue;
+            var n = neigh[i];                             // очередной сосед
+            if (n == null) continue;                      // пропуск «пустых» ссылок
 
-            var ev = n.eventData;                                  // Берём EventSO
-            // Нас интересуют только события-бои с флагом агрессии и валидными врагами
-            if (ev.isCombat && ev.isAggressiveCombat && ev.HasCombatEnemies())
-            {
-                // Запускаем бой на этом тайле и выходим (только один бой за раз)
-                StartCombatOnTile(n);
-                return;
-            }
+            // ⬇️ ключевое условие: снимаем фишку ТОЛЬКО если гекс уже был раскрыт
+            if (!n.isRevealed) continue;                  // сосед ещё не открыт — не трогаем его барьеры
+
+            // Снимаем первую фишку (если есть). Сам HexTile внутри проверит наличие и обновит бейдж.
+            n.RemoveFirstBarrier();
         }
     }
-
 
 
     /// Безопасно получить CombatController (если поле не выставлено в инспекторе)
@@ -215,7 +365,8 @@ public class HexMapController : MonoBehaviour
         _pendingCombatTile = eventTile;                                   // Запоминаем, какой тайл «привязан» к бою
 
         // Запускаем бой (CombatController уже показывает экран, блокирует остальной UI и управляет раундами)
-        cc.StartCombat(ev.combatEnemies);                                // Передаём список EnemySO (1..3)
+        if (cc) cc.StartCombatAtTile(_pendingCombatTile, ev.combatEnemies);
+        //cc.StartCombat(ev.combatEnemies);                                // Передаём список EnemySO (1..3)
         // Важно: сам CombatController в момент победы должен вызвать ниже метод OnCombatEnded(true)
         // (см. комментарий к публичному методу — его удобно позвать из EndCombatAndClose)
     }
@@ -247,6 +398,254 @@ public class HexMapController : MonoBehaviour
         else
         {
             // Здесь можно обработать поражение/отмену при необходимости (ничего не делаем по умолчанию)
+        }
+    }
+
+    // Явно: «проходим для пути» значит открыт, пуст, проходим
+    private bool IsTileWalkableForPath(HexTile t)
+    {
+        if (t == null || !t.isRevealed || !t.isPassable) return false;
+        // Путь валиден на пустые и на выход:
+        return t.type == HexType.Empty || t.type == HexType.Exit;
+    }
+
+    // Построить кратчайший путь «только по открытому пустому проходимому полю».
+    // Возвращает список тайлов от start до goal, или null если пути нет.
+    private List<HexTile> FindPath(HexTile start, HexTile goal)
+    {
+        if (start == null || goal == null) return null;
+        if (!IsTileWalkableForPath(goal)) return null;           // ходим только на пустые открытые проходимые
+        if (start == goal) return new List<HexTile> { start };   // нулевая длина — стоим на месте
+
+        var q = new Queue<HexTile>();                            // очередь для BFS
+        var came = new Dictionary<HexTile, HexTile>();           // откуда пришли
+        q.Enqueue(start);
+        came[start] = null;
+
+        while (q.Count > 0)
+        {
+            var cur = q.Dequeue();
+            if (cur == goal) break;                              // нашли цель
+
+            foreach (var n in GetNeighbors(cur.x, cur.y))        // соседи клетки
+            {
+                if (!IsTileWalkableForPath(n)) continue;         // фильтр клеток
+                if (came.ContainsKey(n)) continue;               // уже посещали
+                came[n] = cur;                                   // запомнить предка
+                q.Enqueue(n);                                    // добавить в очередь
+            }
+        }
+
+        if (!came.ContainsKey(goal)) return null;                // не достижимо
+
+        // восстанавливаем путь: goal → ... → start
+        var path = new List<HexTile>();
+        var t = goal;
+        while (t != null)
+        {
+            path.Add(t);
+            t = came[t];
+        }
+        path.Reverse();                                          // start → ... → goal
+        return path;
+    }
+
+    // Сколько карт надо сбросить за длину пути (шагов): 1 карта за каждые 3 или менее гексов.
+    private int ComputeMoveCostInCards(int steps)
+    {
+        if (steps <= 0) return 0;
+        return Mathf.CeilToInt(steps / 3f);                      // 1..3 → 1, 4..6 → 2, и т.д.
+    }
+  
+    private static bool EventHasTimid(EventSO ev)
+    {
+        if (ev == null || !ev.isCombat || ev.combatEnemies == null) return false;
+
+        for (int i = 0; i < ev.combatEnemies.Count; i++)           // по врагам события
+        {
+            var enemy = ev.combatEnemies[i];
+            if (enemy == null || enemy.tags == null) continue;
+
+            for (int j = 0; j < enemy.tags.Count; j++)             // по тегам врага
+            {
+                var tag = enemy.tags[j];
+                if (tag && !string.IsNullOrEmpty(tag.id) &&
+                    string.Equals(tag.id, "Timid", System.StringComparison.OrdinalIgnoreCase))
+                    return true;                                    // нашли Timid
+            }
+        }
+        return false;                                               // нет Timid
+    }
+
+    private void CullPendingTimidIfAnyAndNotTarget(HexTile target)
+    {
+        if (_timidAwaitingCull.Count == 0) return;
+
+        // Если клик не по timid-тайлу, все помеченные — очистить
+        if (target == null || !_timidAwaitingCull.Contains(target))
+        {
+            foreach (var t in _timidAwaitingCull)
+            {
+                if (!t) continue;
+                t.ClearEvent();            // гекс становится пустым
+                t.UpdateVisual();          // UI обновится, бейдж спрячется
+            }
+        }
+        _timidAwaitingCull.Clear();
+    }
+
+    // Обновить подсказку перемещения при наведении
+    public void OnHoverHex(HexTile tile)
+    {
+        // Если ранее подсвечивали другой тайл — обязательно спрячем
+        if (_lastHintTile != null && _lastHintTile != tile)
+            _lastHintTile.HideMoveHint();
+
+        // Если «уйти» с гекса (tile == null) — скрыть и сбросить ссылку
+        if (tile == null)
+        {
+            _lastHintTile = null;                // забываем ссылку
+            return;                              // и ничего не показываем
+        }
+
+        _lastHintTile = tile;                    // запоминаем текущий «ховер»
+
+        // Во время боя/движения подсказок не показываем
+        if (_combatRunning || _pathMoveInProgress) { tile.HideMoveHint(); return; }
+
+        // Показываем подсказки только на открытых пустых проходимых гексах
+        if (!IsTileWalkableForPath(tile)) { tile.HideMoveHint(); return; }
+
+        // На клетке, где стоит игрок, НЕ показываем вообще ничего
+        var cur = GetHex(playerPawn.x, playerPawn.y);
+        if (tile == cur) { tile.HideMoveHint(); return; }
+
+        // Пробуем построить путь только по видимым пустым проходимым
+        var path = FindPath(cur, tile);
+
+        // Если пути нет — НЕ показываем «X» (по ТЗ: го/стоимость только если путь доступен)
+        if (path == null || path.Count < 2) { tile.HideMoveHint(); return; }
+
+        // Есть валидный путь → показываем «go» и стоимость
+        int steps = path.Count - 1;                     // длина пути в шагах
+        int cost = ComputeMoveCostInCards(steps);      // 1 карта за каждые ≤3 шага (ceil)
+        tile.ShowMoveHint(true, cost);
+    }
+
+    private System.Collections.IEnumerator AfterMoveRevealAndMaybeAggressive()
+    {
+        // 1) открыть соседей финальной клетки (это и пометит агрессивный бой, если он рядом)
+        //RevealNeighbors(atTile.x, atTile.y);
+        yield return null; // дать кадр на отрисовку
+
+        // 2) если при раскрытии нашли агрессивный бой — покажем предупреждение и только затем стартанём бой
+        if (_pendingAggressiveNear != null && !_combatRunning)
+        {
+            var ev = _pendingAggressiveNear.eventData;
+            string enemyName = ev != null && ev.GetPreviewEnemy() != null
+                ? ev.GetPreviewEnemy().displayName
+                : "враг";
+
+            // Текст берём из провайдера (ключ, например, "aggressiveWarn")
+            var provider = ModalContentProvider.Instance;
+            var content = provider ? provider.Resolve("aggressiveWarn")
+                                   : new ResolvedModalContent { title = "Опасность!", description = "", image = null };
+
+            // Если в описании есть плейсхолдер — подставим имя
+            string msg = string.IsNullOrWhiteSpace(content.description)
+                ? $"Агрессивный {enemyName} нападёт — вы подошли слишком близко."
+                : content.description.Replace("{enemy}", enemyName);
+
+            // Сконструируем запрос модалки: маленькая, без «Отмены»
+            var req = new ModalRequest
+            {
+                kind = ModalKind.Small,                 // было Confirm → стало Small
+                message = msg,
+                picture = content.image,
+                canCancel = false
+            };
+
+            bool closed = false;
+            ModalManager.Instance?.Show(req, _ => closed = true);
+            while (!closed) yield return null;  // ждём, пока игрок нажмёт ОК
+
+            // Теперь — старт боя на отложенном тайле
+            StartCombatOnTile(_pendingAggressiveNear);
+            _pendingAggressiveNear = null;
+        }
+    }
+
+    private System.Collections.IEnumerator HandleExitReached(HexTile exitTile)
+    {
+        // 1) Собрать «эффекты» для модалки из инвентаря: все ресурсы, которые накопил игрок
+        var inv = InventoryController.Instance;
+        var effects = new List<EventSO.Reward>(); // используем твою структуру наград как контейнер строк
+        if (inv != null)
+        {
+            foreach (var kv in inv.Counts)
+            {
+                var res = kv.Key;    // ResourceDef
+                var cnt = kv.Value;  // количество
+                if (res == null || cnt <= 0) continue;
+
+                effects.Add(new EventSO.Reward
+                {
+                    type = EventSO.RewardType.Resource,
+                    resource = res,
+                    amount = cnt
+                });
+            }
+        }
+
+        // 2) Показ FreeRewardModal: заголовок/картинка/описание + ресурсы из инвентаря
+
+        var provider = ModalContentProvider.Instance;
+        string key = CampaignManager.Instance ? CampaignManager.Instance.ExitModalKey : "exit"; // ключ записи
+        var content = provider ? provider.Resolve(key)
+                               : new ResolvedModalContent { title = "Приключение завершено", description = "", image = null };
+
+
+        // Готовим список ресурсов (def, amount)
+        //var inv = InventoryController.Instance;
+        var resList = new List<(ResourceDef def, int amount)>();
+        if (inv != null)
+        {
+            foreach (var kv in inv.Counts)
+                if (kv.Key && kv.Value > 0)
+                    resList.Add((kv.Key, kv.Value));
+        }
+
+        // Покажем через сам FreeRewardModalUI (т.к. ModalManager пока не принимает список ресурсов напрямую)
+        var frm = FindFirstObjectByType<FreeRewardModalUI>(FindObjectsInactive.Include);
+        bool closed = false;
+        frm.ShowRuntimeResources(content.title, content.description, content.image, resList, () => closed = true);
+        while (!closed) yield return null;
+
+        // 3) Цена перехода: 1 thirst и 1 hunger (как в ТЗ). Если их нет — уйдёт HP (логика внутри PlayerStatsSimple)
+        var stats = FindFirstObjectByType<PlayerStatsSimple>(FindObjectsInactive.Include);
+        if (stats != null)
+        {
+            stats.ConsumeThirst(1);
+            stats.ConsumeHunger(1);
+
+            // Если от нехватки упало HP → смерть (модалка и рестарт приключения)
+            if (stats.Health <= 0)
+            {
+                stats.CheckDeathNow();
+                yield break;
+            }
+        }
+
+        // 4) Переход в следующее приключение
+        var cm = CampaignManager.Instance;
+        if (cm != null)
+        {
+            if (!cm.BuildNextStageInThisScene())           // если этапов нет — маршрут окончен
+                Debug.Log("[HexMapController] Кампания завершена (следующего этапа нет).");
+        }
+        else
+        {
+            Debug.LogWarning("[HexMapController] CampaignManager не найден — остаёмся в этой же миссии.");
         }
     }
 

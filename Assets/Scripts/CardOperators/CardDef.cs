@@ -21,7 +21,9 @@ public class CardDef : ScriptableObject
     public int power;                           // «Кулачки» (для боя)
     public int speed;
 
-    public string[] tags;                       // Теги (пока строки; позже можно Flags-энум)
+    public List<EffectDef> effects = new();   // СПИСОК эффектов карты
+
+    public List<TagDef> tags = new();     // теги карты
 
     public List<AbilityDef> abilities = new();   // например, одна способность «Eye»
 }

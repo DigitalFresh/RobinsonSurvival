@@ -55,8 +55,16 @@ public class FightingBlockUI : MonoBehaviour
         if (txtShields) txtShields.text = cachedDefense.ToString(); // Печатаем щиты
         // Предварительно рассчитать раны по игроку (пока без применения)
         int wounds = Mathf.Max(0, (enemy != null ? enemy.attack : 0) - cachedDefense); // Раны = атака - защита
-        UpdateUI(wounds);                              // Покажем/скроем узел Wounds
+                                                                                       // === ПРАВИЛО «вся атака дальняя» ===
+        bool onlyRanged = AttackOnlyRanged();       // проверяем состав карт в атаке
+        if (onlyRanged)                              // если все карты в атаке имеют эффект Ranged
+            wounds = 0;                              // превью ран по игроку = 0
+
+        UpdateUI(wounds);                            // показать/спрятать блок Wounds с учётом правила
+        UpdateRangedBlinkForAttack(onlyRanged);      // мигаем иконками эффекта, если «режим дальний» включён
+
         int damageToEnemy = Mathf.Max(0, cachedAttack - (enemy != null ? enemy.armor : 0)); // Урон по врагу, если жать END сейчас
+        if (enemyView) enemyView.StopDamagePreview(false);
         if (enemyView) enemyView.PreviewIncomingDamage(damageToEnemy);                      // Запускаем/обновляем мигание
     }
 
@@ -75,8 +83,11 @@ public class FightingBlockUI : MonoBehaviour
 
     public void OnCardRemovedFromZone(CardView card, CombatZoneType from) // Сообщение от соседней зоны при переносе
     {
-        // Пересчитаем суммы (вызывать безопасно хоть каждый раз)
-        RecountSums();                                     // Обновить Fist/Shield/Wounds
+        // 1) Сразу гасим текущее превью сердец (остановка _blinkCo + восстановление базового состояния)
+        if (enemyView) enemyView.StopDamagePreview(false);
+
+        // 2) Пересчёт всего визуала блока (вызовет и новое превью через PreviewIncomingDamage)
+        RecountSums();
     }
 
     private void UpdateUI(int wounds)                      // Отрисовать/скрыть блок «Wounds»
@@ -113,10 +124,14 @@ public class FightingBlockUI : MonoBehaviour
 
         if (enemy == null || enemyView == null) return false; // Без врага — ничего
 
+        if (enemyView) enemyView.StopDamagePreview(true); // перед расчётом всегда гасим и восстанавливаем базовое состояние сердец
         // Урон по врагу: (атака игрока - броня), минимум 0
         int damageToEnemy = Mathf.Max(0, cachedAttack - enemy.armor); // Сколько снимем жизней
         // Урон по игроку: (атака врага - защита), минимум 0
         playerWounds = Mathf.Max(0, enemy.attack - cachedDefense);    // Сколько потеряет игрок
+        // === Применяем правило «вся атака дальняя» и при финальном расчёте ===
+        if (AttackOnlyRanged())                      // если в атаке лежат ТОЛЬКО дальние карты (и зоны не пустая)
+            playerWounds = 0;                        // урон игроку = 0 на этот блок
         // Снимаем жизни у врага
         if (damageToEnemy > 0)                                        // Если пробили броню
         {
@@ -175,6 +190,47 @@ public class FightingBlockUI : MonoBehaviour
             yield return wait; // Подождать
             SetWoundsAlpha(0f);                                // Скрыть (альфа = 0)
             yield return wait; // Подождать
+        }
+    }
+
+    // Вернуть список CardView под контейнером (пусто → пустой массив).
+    private static CardView[] CardsUnder(Transform container)
+    {
+        return container ? container.GetComponentsInChildren<CardView>(false) : System.Array.Empty<CardView>();
+    }
+
+    // У карты есть эффект Ranged attack?
+    private static bool HasRangedTag(CardView cv) =>
+        cv != null && cv.data != null && cv.data.tags != null &&
+        cv.data.tags.Exists(t => t && t.id == "ranged");
+
+
+    // True, если в зоне атаки есть хотя бы одна карта И все карты там — с эффектом Ranged.
+    // Пустая атака → false.
+    private bool AttackOnlyRanged()
+    {
+        var arr = CardsUnder(zoneAttack);
+        bool any = false;
+        for (int i = 0; i < arr.Length; i++)
+        {
+            var cv = arr[i];
+            if (!cv) continue;
+            any = true;
+            if (!HasRangedTag(cv)) return false;
+        }
+        return any;
+    }
+
+    // Включить/выключить мигание иконки эффекта на всех картах атаки.
+    private void UpdateRangedBlinkForAttack(bool blinkOn)
+    {
+        var arr = CardsUnder(zoneAttack);            // все карты в атаке
+        for (int i = 0; i < arr.Length; i++)
+        {
+            var cv = arr[i];
+            if (!cv) continue;
+            // Мигание включаем только у карт, которые действительно имеют эффект
+            cv.SetRangedIconBlink(blinkOn && HasRangedTag(cv));
         }
     }
 }

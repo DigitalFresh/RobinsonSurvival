@@ -12,6 +12,7 @@ using System.Collections.Generic;                              // Списки
 using UnityEngine;                                             // MonoBehaviour, GameObject, Transform, Instantiate
 using UnityEngine.UI;                                          // Button
 using TMPro;                                                   // TMP
+using System.Linq; // для Any()
 
 // Главный контроллер боя: старт/раунды/кнопки/добор/резолв/окончание
 public class CombatController : MonoBehaviour
@@ -47,6 +48,7 @@ public class CombatController : MonoBehaviour
     private int deferredDrawNextRound = 0;                      // Отложенный добор в следующий раунд (копится)
     private bool isRunning = false;                             // Идёт бой?
     private int roundIndex = 0;                                 // Номер текущего раунда (с 1)
+    public HexTile contextTile;
 
     // --- PERF-кэш: один раз создаём ожидания, чтобы не аллоцировать каждый раз в корутинах
     private static readonly WaitForSeconds WOUND_ALERT_WAIT = new WaitForSeconds(1.2f); // ожидание для алерта ран — кэшируем объект
@@ -81,6 +83,19 @@ public class CombatController : MonoBehaviour
     {
         _cardsInZones = Mathf.Max(0, _cardsInZones - 1);                                   // уменьшаем, не уходим в минус
         RefreshDrawButtons();                                                              // обновляем доступность кнопок
+    }
+
+    private static bool EnemyHasTimid(EnemySO e)
+    {
+        if (e == null || e.tags == null) return false;                   // нет врага/тегов
+        for (int i = 0; i < e.tags.Count; i++)                           // перебор TagDef
+        {
+            var t = e.tags[i];
+            if (t && !string.IsNullOrEmpty(t.id) &&
+                string.Equals(t.id, "Timid", System.StringComparison.OrdinalIgnoreCase))
+                return true;                                             // нашли Timid
+        }
+        return false;                                                    // нет Timid
     }
 
     // === ПУБЛИЧНЫЙ СТАРТ БОЯ ===
@@ -134,10 +149,6 @@ public class CombatController : MonoBehaviour
         if (btnDraw2_1) { btnDraw2_1.onClick.RemoveAllListeners(); btnDraw2_1.onClick.AddListener(OnClickDraw2_1); }       // без клоужера
         if (btnDraw3_2) { btnDraw3_2.onClick.RemoveAllListeners(); btnDraw3_2.onClick.AddListener(OnClickDraw3_2); }       // без клоужера
         if (btnEndTurn) { btnEndTurn.onClick.RemoveAllListeners(); btnEndTurn.onClick.AddListener(OnClickEndTurn); }       // без клоужера
-        //if (btnReturnCards) { btnReturnCards.onClick.RemoveAllListeners(); btnReturnCards.onClick.AddListener(ReturnAllToHand); }
-        //if (btnDraw2_1) { btnDraw2_1.onClick.RemoveAllListeners(); btnDraw2_1.onClick.AddListener(() => OnDrawNowPlusNext(2, 1, 2)); }
-        //if (btnDraw3_2) { btnDraw3_2.onClick.RemoveAllListeners(); btnDraw3_2.onClick.AddListener(() => OnDrawNowPlusNext(3, 2, 3)); }
-        //if (btnEndTurn) { btnEndTurn.onClick.RemoveAllListeners(); btnEndTurn.onClick.AddListener(() => StartCoroutine(ResolveRoundAndContinue())); }
 
         // Начальный раунд
         isRunning = true;                                         // Бой активен
@@ -147,6 +158,19 @@ public class CombatController : MonoBehaviour
 
         StartCoroutine(RoundStartDrawIfDeferred());               // Отдать отложенный добор (если был)
         RefreshDrawButtons();                                     // Пересчитать доступность «доборов»
+    }
+
+    // Явно проставить гекс-контекст (если нужно отдельно)
+    public void SetContextTile(HexTile tile)
+    {
+        contextTile = tile;                 // запоминаем гекс, на котором идёт бой
+    }
+
+    // Удобная перегрузка: старт боя сразу на конкретном гексе
+    public void StartCombatAtTile(HexTile tile, List<EnemySO> enemies)
+    {
+        contextTile = tile;                 // 1) проставили контекст
+        StartCombat(enemies);               // 2) и запустили бой обычным путём
     }
 
 
@@ -182,6 +206,7 @@ public class CombatController : MonoBehaviour
             _cardsInZones = Mathf.Max(0, _cardsInZones - 1);         // Декремент счётчика — карта покинула боевую зону
             cv.transform.SetParent(hand.handPanel, false);          // Кладём в руку
             cv.rect.localScale = Vector3.one;                       // Восстановить масштаб
+            //cv.RefreshLocationVisuals(); // вернёт кнопке корректную видимость «как в руке»
         }
     }
 
@@ -189,7 +214,7 @@ public class CombatController : MonoBehaviour
     private void OnDrawNowPlusNext(int now, int plusNext, int energyCost)
     {
         if (!hand || !deck || !stats) return;                      // Проверка
-        if (stats.Energy < energyCost) return;                     // Недостаточно энергии
+        //if (stats.Energy < energyCost) return;                     // Недостаточно энергии
         stats.SpendEnergy(energyCost);                              // Списываем
         // Сколько сейчас на столе (рука + все зоны)
         int totalOnTable = CountCardsOnTable();                    // Считаем все карты
@@ -278,6 +303,7 @@ public class CombatController : MonoBehaviour
 
         int totalPlayerWounds = 0;                                  // Сколько суммарно потеряет игрок в этом раунде
         var deadPairs = new List<(FightingBlockUI fb, List<EventSO.Reward> loot)>(); // Убитые враги и их лут
+        var fledBlocks = new List<FightingBlockUI>();  // Робкие, не убитые — уйдут без лута
 
         // Проходим по блокам слева направо
         foreach (var fb in blocks)
@@ -291,6 +317,12 @@ public class CombatController : MonoBehaviour
                 {
                     deadPairs.Add((fb, loot));                      // Запомним для анимации лута
                 }
+            }
+
+            if (!killed && fb.enemyView && EnemyHasTimid(fb.enemyView.data))
+            {
+                // Правило 1: Робкий противник уходит после первого же раунда, лута нет
+                fledBlocks.Add(fb);
             }
 
             // TODO: эффекты «после расчёта блока» (traits после пункта «c») — место для хуков
@@ -310,6 +342,16 @@ public class CombatController : MonoBehaviour
 
             if (alertRoot) alertRoot.SetActive(false);           // Прячем алерт
             if (backgroundWound) backgroundWound.SetActive(false); // Прячем фон
+        }
+        
+        if (stats != null && stats.Health <= 0) // или stats.IsDead, если сделаешь свойство
+        {
+            // Закрываем бой как поражение (см. пункт 2 — перегрузка с параметром победы/поражения)
+            yield return EndCombatAndClose(false); // Запускаем модалку смерти/рестарт (метод в PlayerStatsSimple из наших прошлых правок)
+            //Debug.Log("check 2" + stats.Health);
+            stats.CheckDeathNow(); // или твой публичный wrapper: CheckDeathNow();
+            //Debug.Log("check 3" + stats.Health);
+            yield break; // прекращаем корутину — ни лут, ни следующий раунд не выполняются
         }
 
         // Если есть убитые враги — анимируем их лут (по одному блоку подряд)
@@ -377,6 +419,12 @@ public class CombatController : MonoBehaviour
             if (dead) Destroy(dead.gameObject);                // Уничтожаем UI Fighting_block с арены
         }
 
+        foreach (var fled in fledBlocks)
+        {
+            blocks.Remove(fled);
+            if (fled) Destroy(fled.gameObject); // просто убираем блок, без «dead»-оверлея и без лута
+        }
+
         // Проверяем, остались ли живые враги
         bool anyAlive = false;                                    // Флаг — есть ли живые
         foreach (var fb in blocks)                                // Идём по стычкам
@@ -390,13 +438,21 @@ public class CombatController : MonoBehaviour
         if (!anyAlive)                                           // Все враги мертвы?
         {
             StartCoroutine(RoundStartDrawIfDeferred());
-            yield return EndCombatAndClose();                    // Закрываем бой (корутина)
+            if (contextTile != null)
+            {
+                var map = HexMapController.Instance
+                      ?? FindFirstObjectByType<HexMapController>(FindObjectsInactive.Include);
+                if (map) map.PopOneBarrierOnNeighbors(contextTile);
+            }
+
+            yield return EndCombatAndClose(true);                    // Закрываем бой (корутина)
             yield break;                                         // Завершаем выполнение
         }
 
         // Иначе — начинаем следующий раунд
         roundIndex++;                                          // Счётчик раундов
         foreach (var fb in blocks) if (fb) fb.RecountSums();        // Обновляем Fist/Shield/Wounds
+        hand.RaisePilesChanged();
         StartCoroutine(RoundStartDrawIfDeferred());                             // Отложенный добор (кнопки «2/3»)
         RefreshDrawButtons();                                    // Обновляем доступность доборов
         //isResolving = false;                                     // Разрешаем действия
@@ -429,20 +485,17 @@ public class CombatController : MonoBehaviour
         }
     }
 
-    private IEnumerator EndCombatAndClose()                          // Закрытие экрана боя
+    private IEnumerator EndCombatAndClose(bool playerWon)
     {
-        //isResolving = true;                                          // Блокируем ввод
-        yield return END_PAUSE_WAIT;                      // Небольшая пауза «выдохнуть»
-        HexMapController.Instance?.OnCombatEnded(true); // победили
+        yield return END_PAUSE_WAIT;
+        HexMapController.Instance?.OnCombatEnded(playerWon);
         isRunning = false;
-        if (combatScreen) combatScreen.SetActive(false);             // Прячем экран боя
+        contextTile = null;
+        if (combatScreen) combatScreen.SetActive(false);
         if (deckHUD) { if (deckHUD.Buttons) deckHUD.Buttons.SetActive(true); }
-        ModalGate.Release(this);                                     // Снимаем «замок» модалок/инпута
-
-        // Здесь можно триггерить финальные модалки или продолжение сценария,
-        // если бой стартовал как «награда» другого события.
-        // (Пока оставляю как no-op — логика показа уже есть в Event/Choose окнах.)
+        ModalGate.Release(this);
     }
+
 
     // Список временно отключённых контроллеров карты, чтобы потом вернуть как было
     private readonly List<MonoBehaviour> _disabledHexInputs = new List<MonoBehaviour>(); // Храним, кого отключили

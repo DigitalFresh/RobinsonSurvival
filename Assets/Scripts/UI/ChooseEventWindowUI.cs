@@ -316,6 +316,13 @@ public class ChooseEventWindowUI : MonoBehaviour
         // 3) карты из зоны в сброс
         MovePlacedCardsToDiscard();
 
+        if (sourceTile != null)
+        {
+            var map = HexMapController.Instance
+                  ?? FindFirstObjectByType<HexMapController>(FindObjectsInactive.Include);
+            if (map) map.PopOneBarrierOnNeighbors(sourceTile);
+        }
+
         Hide();                                        // Прячем окно выбора
 
         StartCoroutine(ShowModalsThenRunAnimations_AndMove(
@@ -349,38 +356,65 @@ public class ChooseEventWindowUI : MonoBehaviour
     {
         // 1) МОДАЛКИ — ПОСЛЕДОВАТЕЛЬНО
         // 1.1) chooseFinalModalUI (если используется у вас; оставляю место подключения)
-        if (needChooseFinalModal)
+        if (needChooseFinalModal && freeRewardsToShow != null && freeRewardsToShow.Count > 0)
         {
-            ModalGate.Acquire(this);
-            var rewardModal = FreeRewardModalUI.Get();
-            rewardModal?.ShowMany(freeRewardsToShow); // покажем очередь модалок (если их несколько)
+            bool done = false;
+            ModalManager.Instance?.Show(new ModalRequest
+            {
+                kind = ModalKind.FreeReward,
+                size = ModalSize.Medium,
+                freeRewards = freeRewardsToShow    // <— теперь поле существует
+            }, _ => done = true);
 
-            while (rewardModal.isActiveAndEnabled)
-                yield return null;
-            ModalGate.Release(this);
+            while (!done) yield return null;
         }
+        //if (needChooseFinalModal)
+        //{
+        //    ModalGate.Acquire(this);
+        //    var rewardModal = FreeRewardModalUI.Get();
+        //    rewardModal?.ShowMany(freeRewardsToShow); // покажем очередь модалок (если их несколько)
+
+        //    while (rewardModal.isActiveAndEnabled)
+        //        yield return null;
+        //    ModalGate.Release(this);
+        //}
         //Debug.Log(needAwardedCardsModal);
         //Debug.Log(awardedCardDefs);
 
         // 1.2) awardedCardModalUI — в вашем проекте это InfoModalUI.ShowNewCards(...)
         if (needAwardedCardsModal && awardedCardDefs != null && awardedCardDefs.Count > 0)
         {
-            // Находим модалку «новые карты»
-            var cardsModal = FindFirstObjectByType<InfoModalUI>(FindObjectsInactive.Include); // используем ваш InfoModalUI
-            if (cardsModal != null)                                                           // если нашли
+            bool doneCards = false;
+            ModalManager.Instance?.Show(new ModalRequest
             {
-                //Debug.Log(needAwardedCardsModal);
-                ModalGate.Acquire(this);                                                      // блокируем ввод
-                                                                                              // Показываем модалку (текст можно менять по вкусу)
-                string msg = (awardedCardDefs.Count == 1) ? "Получена новая карта" : $"Получены новые карты ×{awardedCardDefs.Count}";
-                cardsModal.ShowNewCards(msg, awardedCardDefs);                                // показать список карт
-                yield return null;                                                            // кадр на отрисовку
-                                                                                              // Ждём пока модалка закроется (если нет коллбека onClose — поллим активность)
-                while (cardsModal.isActiveAndEnabled)                                         // пока открыта
-                    yield return null;                                                        // ждём кадр
-                ModalGate.Release(this);                                                      // снимаем блок
-            }
+                kind = ModalKind.Info,
+                size = ModalSize.Large,
+                title = (awardedCardDefs.Count == 1) ? "Получена новая карта" : $"Получены новые карты ×{awardedCardDefs.Count}",
+                cards = awardedCardDefs
+            }, _ => doneCards = true);
+
+            while (!doneCards) yield return null;
         }
+
+
+        //if (needAwardedCardsModal && awardedCardDefs != null && awardedCardDefs.Count > 0)
+        //{
+        //    // Находим модалку «новые карты»
+        //    var cardsModal = FindFirstObjectByType<InfoModalUI>(FindObjectsInactive.Include); // используем ваш InfoModalUI
+        //    if (cardsModal != null)                                                           // если нашли
+        //    {
+        //        //Debug.Log(needAwardedCardsModal);
+        //        ModalGate.Acquire(this);                                                      // блокируем ввод
+        //                                                                                      // Показываем модалку (текст можно менять по вкусу)
+        //        string msg = (awardedCardDefs.Count == 1) ? "Получена новая карта" : $"Получены новые карты ×{awardedCardDefs.Count}";
+        //        cardsModal.ShowNewCards(msg, awardedCardDefs);                                // показать список карт
+        //        yield return null;                                                            // кадр на отрисовку
+        //                                                                                      // Ждём пока модалка закроется (если нет коллбека onClose — поллим активность)
+        //        while (cardsModal.isActiveAndEnabled)                                         // пока открыта
+        //            yield return null;                                                        // ждём кадр
+        //        ModalGate.Release(this);                                                      // снимаем блок
+        //    }
+        //}
 
         // 2) АНИМАЦИИ — ПО ПОРЯДКУ: пенальти → ресторы → ресурсы
         // 2.1) Пенальти: левый верх → центр → тайл (по одной иконке за единицу)

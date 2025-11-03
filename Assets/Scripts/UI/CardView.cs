@@ -61,6 +61,11 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
     public Button eyeDrawButton;                           // Маленькая кнопка «Добрать»
     //public TextMeshProUGUI eyeOnButtonText;                // Подпись на кнопке (например, «Добрать x2»)
 
+    [Header("Effect icons")]
+    public UnityEngine.UI.Image effectIcon1;   // Image в зоне Effect_icons → Effect1
+
+    private Coroutine _rangedBlinkCo;          // корутина мигания иконки дальнего бо
+
     // ==== DRAG ЛОГИКА И СВЯЗЬ С ЗОНАМИ ====
     [Header("Drag & Zones")]
     public EventWindowDropZone ownerZone;                  // Если карта лежит в зоне EventWindow — здесь будет ссылка
@@ -74,10 +79,27 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
     public PlayerStatsSimple stats;                        // Для логики кнопки «Глаз» (место в руке/энергия)
     public HandController hand;                            // Чтобы узнать HandCount/лимит
 
+    [Header("Consume ability button")]
+    public Button consumeButton;
+    public ConsumeCompositeButton consumeComposite;
+    public Sprite hpIcon, energyIcon, waterIcon, foodIcon;
+
+    [SerializeField] private TooltipTrigger eyeTooltip;
+    [SerializeField] private TooltipTrigger consumeTooltip;
+    [SerializeField] private TooltipTrigger effectTooltip;   // для Effect_icons (ranged и др.)
+
+    static readonly Color COL_HEALTH = new Color32(220, 54, 54, 255); // красный
+    static readonly Color COL_ENERG = new Color32(240, 200, 48, 255); // жёлтый
+    static readonly Color COL_WATER = new Color32(70, 140, 220, 255); // синий
+    static readonly Color COL_FOOD = new Color32(70, 190, 70, 255); // зелёный
+
     // Удобные свойства: где карта сейчас
     private bool IsDragging => (dragCanvas != null && transform.parent == dragCanvas.transform); // Сейчас тащим под Canvas?
     private bool IsInPlayArea => (ownerZone != null);     // Находится в зоне EventWindow?
     private bool IsInHand => !IsInPlayArea && !IsDragging;// В руке = не в зоне и не в перетаскивании
+
+    bool HasTag(string tagId) =>
+    data && data.tags != null && data.tags.Exists(t => t && t.id == tagId);
 
     // Внутренние сохранённые размеры для корректного возврата в «руку»
     private Vector2 _cardFullSize;                         // Полный sizeDelta карты «в руке»
@@ -135,9 +157,35 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
         if (eyeDrawButton != null)
             eyeDrawButton.onClick.AddListener(OnEyeButtonClicked);
 
+        if (consumeButton) consumeButton.onClick.AddListener(() => // кнопка поедания еды
+        {
+            if (instance != null) AbilityRunner.RunManualAbility(instance);  // запускаем ability
+        });
+
         // Ссылки на статы/руку (если не назначены вручную)
         if (stats == null) stats = FindFirstObjectByType<PlayerStatsSimple>(); // Поищем PlayerStatsSimple
         if (hand == null) hand = HandController.Instance;                      // Возьмём синглтон руки
+
+        if (eyeDrawButton)
+        {
+            eyeTooltip = eyeDrawButton.GetComponent<TooltipTrigger>();
+            if (!eyeTooltip) eyeTooltip = eyeDrawButton.gameObject.AddComponent<TooltipTrigger>();
+            eyeTooltip.customText = "";     // текст подставим при Bind по количеству eye
+        }
+
+        if (consumeButton)
+        {
+            consumeTooltip = consumeButton.GetComponent<TooltipTrigger>();
+            if (!consumeTooltip) consumeTooltip = consumeButton.gameObject.AddComponent<TooltipTrigger>();
+            consumeTooltip.customText = ""; // заполним при Bind из ability Restore*
+        }
+
+        if (effectIcon1)
+        {
+            effectIcon1.raycastTarget = true; // иконка должна ловить наведение
+            effectTooltip = effectIcon1.GetComponent<TooltipTrigger>();
+            if (!effectTooltip) effectTooltip = effectIcon1.gameObject.AddComponent<TooltipTrigger>();
+        }
     }
 
     private void OnEnable()                                // Подписки при активации
@@ -202,6 +250,60 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
         // Кнопка «Глаз»
         //if (eyeOnButtonText != null) eyeOnButtonText.text = (data != null && data.eye > 0) ? $"Добрать x{data.eye}" : "";
         UpdateEyeButtonVisibility();                   // Пересчитаем видимость кнопки
+
+        // === Иконка эффекта "Ranged attack" ===
+        // при биндинге карты:
+        var rangedTag = data.tags?.Find(t => t && t.id == "ranged");
+        SetEffectIcon(rangedTag ? rangedTag.uiIcon : null, rangedTag != null);
+        SetRangedIconBlink(false); // мигание включает FightingBlockUI, когда все карты в атаке — «ranged»
+
+        if (effectTooltip)           // tooltip для иконки эффекта/тега
+        {
+            effectTooltip.tagDef = rangedTag;                 // возьмёт description из TagDef
+            effectTooltip.customText = rangedTag ? rangedTag.description : ""; // fallback
+        }
+
+        // подсказка для Eye-кнопки: формируем живой текст «Добрать X карт»
+        if (eyeTooltip)
+        {
+            var x = (data != null && data.eye > 0) ? data.eye : 0;
+            eyeTooltip.customText = x > 0 ? $"Сбросить эту карту, чтобы добрать {x} карты из колоды" : "";
+        }
+
+        // подсказка для Consume-кнопки: строим текст по ability с RestoreStatEffectDef
+        if (consumeTooltip)
+        {
+            var ab = FindManualAbilityWithRestore();
+            if (ab != null)
+            {
+                // Собираем строку вида:
+                // «Потратить карту, чтобы восстановить: +2 Вода, +1 Еда»
+                System.Text.StringBuilder sb = new();
+                sb.Append("Уничтожить карту, чтобы восстановить: ");
+
+                bool first = true;
+                for (int i = 0; i < ab.effects.Length; i++)
+                {
+                    var r = ab.effects[i] as RestoreStatEffectDef;
+                    if (r == null || r.amount <= 0) continue;
+
+                    if (!first) sb.Append(", ");
+                    first = false;
+
+                    string statName = r.stat switch
+                    {
+                        RestoreStatEffectDef.StatKind.Health => "Здоровье",
+                        RestoreStatEffectDef.StatKind.Energy => "Энергия",
+                        RestoreStatEffectDef.StatKind.Thirst => "Воду",
+                        _ => "Еду"
+                    };
+                    sb.Append($"+{r.amount} {statName}");
+                }
+                consumeTooltip.customText = sb.ToString();
+            }
+            else consumeTooltip.customText = "";
+        }
+
     }
 
     // Проверяем, лежит ли карта в зоне боя (ищем CombatDropZone среди родителей)
@@ -303,6 +405,8 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
         if (brainIcon != null) brainIcon.enabled = (data != null && data.brain > 0);
         if (powerIcon != null) powerIcon.enabled = (data != null && data.power > 0);
         if (speedIcon != null) speedIcon.enabled = (data != null && data.speed > 0);
+
+
     }
 
     // === Отрисовать элементы, зависящие от МЕСТОПОЛОЖЕНИЯ карты (рука/drag/EventWindow) ===
@@ -343,6 +447,8 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
             SetToEventCroppedMode();                                          // Делаем «урезанную» высоту (арт обрезан снизу)
         else                                                                    // Иначе (рука или drag)
             SetToHandSize();                                                    // Полная высота карты (как в руке)
+
+        UpdateConsumeButtonVisibility();
     }
 
     // === РЕЖИМЫ ВЫСОТЫ И ОБРЕЗКИ ===
@@ -362,6 +468,12 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
             artMask.sizeDelta = sz;
             artMask.anchoredPosition = new Vector2(0f, 0f); // при верхних якорях 0 — у верхней кромки
         }
+
+        var ab = FindManualAbilityWithRestore();                      
+        bool show = (ab != null) && IsInHand;                         // карта в руке + есть Restore
+        if (consumeButton) consumeButton.gameObject.SetActive(show);  // сам объект кнопки
+        if (show) SetupConsumeButtonVisuals(ab);                      // ← подставить чипы и растянуть фон
+
     }
 
     // Включить «урезанный» режим для EventWindow: карта ниже, арт обрезан снизу
@@ -379,10 +491,32 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
             // якоря/пивот уже заданы к верху в Awake()
             artMask.anchoredPosition = new Vector2(0f, 0f); // при верхних якорях 0 — у верхней кромки
         }
+
+        if (consumeButton) consumeButton.gameObject.SetActive(false);
     }
 
+    // Показ/скрытие кнопки «Consume» по месту нахождения карты
+    private void UpdateConsumeButtonVisibility()
+    {
+        if (!consumeButton) return;                               // Если кнопки нет — выходим
+
+        // Кнопка видна ТОЛЬКО если карта в руке и у неё есть ручная ability с Restore*
+        bool visible = IsInHand && (FindManualAbilityWithRestore() != null);
+        if (IsInCombatZone()) { visible = false; };
+
+        // Переключаем объект целиком (вместе с фоном и иконками на кнопке)
+        if (consumeButton.gameObject.activeSelf != visible)
+            consumeButton.gameObject.SetActive(visible);
+    }
+
+    //// Показывать/скрывать кнопку «Consume» ТОЛЬКО через этот метод при перемещениях вне руки
+    //public void HideConsumeButtonHard()
+    //{
+    //    if (consumeButton) consumeButton.gameObject.SetActive(false); // скрываем целиком фон+иконки
+    //}
+
     // === Видимость кнопки «Глаз» ===
-    
+
     private void UpdateEyeButtonVisibility()
     {
         if (eyeDrawButton == null) return;                  // Нет кнопки — выходим
@@ -419,17 +553,6 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
 
         // --- NEW: учитываем карты, лежащие в боевых зонах, если Combat_screen открыт ---
         int combatCount = CombatController.Instance ? CombatController.Instance.CardsInZones : 0; // Быстро: берём счётчик из контроллера
-        //int combatCount = 0;
-        // Счетчик карт в боевых зонах
-        //var zones = Object.FindObjectsByType<CombatDropZone>(                     // ✅ НОВОЕ: современный API
-        //    FindObjectsInactive.Include,                                          //    Включаем неактивные объекты
-        //    FindObjectsSortMode.None                                              //    Без сортировки (быстрее)
-        //    );                   // Ищем все боевые зоны (в т.ч. неактивные)
-        //foreach (var z in zones)                                                 // Перебираем найденные зоны
-        //{
-        //    if (z == null || !z.gameObject.activeInHierarchy) continue;          // Пропускаем неактивные/пустые
-        //    combatCount += z.GetComponentsInChildren<CardView>(false).Length;    // Считаем CardView как «1 карта»
-        //}
 
         // Есть ли вместимость с учётом карт «на столе» (событие + бой)
         bool hasCapacityConsideringBoard = (handCount + playCount + combatCount) < maxHand;
@@ -449,6 +572,100 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
         // Запускаем первую способность с триггером ManualActivate (по вашей схеме 83–84)
         AbilityRunner.RunManualAbility(instance);           // Стоимости, затем эффекты
         // Внутри эффектов: DiscardSelf → DrawCards_Eye и т.д.
+    }
+
+    // Есть ли у карты (data.effects) эффект типа T?
+    public bool HasEffect<T>() where T : EffectDef
+    {
+        // true, если есть дефиниция, список эффектов не пуст и среди них есть T
+        return data != null && data.effects != null && data.effects.Exists(e => e is T);
+    }
+
+    // Поставить иконку эффекта (если есть) и включить/выключить её.
+    private void SetEffectIcon(Sprite sprite, bool visible)
+    {
+        if (!effectIcon1) return;                    // нет ссылки — выходим
+        effectIcon1.sprite = sprite;                 // ставим спрайт (может быть null)
+        effectIcon1.enabled = visible && sprite;     // показываем только если есть что рисовать
+    }
+
+    //Включить/выключить «мигание» иконки эффекта дальнего боя.
+    public void SetRangedIconBlink(bool on)
+    {
+        if (!effectIcon1) return;                    // нет ссылки — выходим
+
+        // Останавливаем предыдущую корутину, если была
+        if (_rangedBlinkCo != null)
+        {
+            StopCoroutine(_rangedBlinkCo);
+            _rangedBlinkCo = null;
+        }
+
+        if (!on)                                     // мигание выключаем — вернуть альфу в 1
+        {
+            var c = effectIcon1.color; c.a = 1f; effectIcon1.color = c;
+            return;
+        }
+
+        // Запускаем простое мигание альфы 1 ↔ 0.3
+        _rangedBlinkCo = StartCoroutine(BlinkIconRoutine());
+
+        System.Collections.IEnumerator BlinkIconRoutine()
+        {
+            var wait = new WaitForSeconds(0.35f);    // период мигания
+            bool dim = false;                        // текущее состояние
+            while (true)
+            {
+                var c = effectIcon1.color;
+                c.a = dim ? 0.35f : 1f;              // понижаем/возвращаем альфу
+                effectIcon1.color = c;
+                dim = !dim;
+                yield return wait;
+            }
+        }
+    }
+
+    private AbilityDef FindManualAbilityWithRestore()
+    {
+        if (data == null || data.abilities == null) return null;
+        for (int i = 0; i < data.abilities.Count; i++)
+        {
+            var a = data.abilities[i];
+            if (a != null && a.trigger == AbilityTrigger.ManualActivate && a.effects != null)
+            {
+                for (int j = 0; j < a.effects.Length; j++)
+                    if (a.effects[j] is RestoreStatEffectDef) return a; // нашлась абилка с восстановлением
+            }
+        }
+        return null;
+    }
+
+    private void SetupConsumeButtonVisuals(AbilityDef ab)
+    {
+        // если нет компонента — нечего настраивать
+        if (!consumeComposite || ab == null || ab.effects == null) return;
+
+        // Соберём список чипов по всем RestoreStatEffectDef в ability
+        var items = new List<(Sprite icon, string text, Color color)>(3);
+
+        for (int i = 0; i < ab.effects.Length && items.Count < 3; i++)
+        {
+            var r = ab.effects[i] as RestoreStatEffectDef;    // берём только RestoreStat
+            if (r == null || r.amount <= 0) continue;         // пропускаем нулевые
+
+            Sprite ic; Color col; string txt = $"+{r.amount}";
+            switch (r.stat)
+            {
+                case RestoreStatEffectDef.StatKind.Health: ic = hpIcon; col = COL_HEALTH; break;
+                case RestoreStatEffectDef.StatKind.Energy: ic = energyIcon; col = COL_ENERG; break;
+                case RestoreStatEffectDef.StatKind.Thirst: ic = waterIcon; col = COL_WATER; break;
+                default: ic = foodIcon; col = COL_FOOD; break;
+            }
+            items.Add((ic, txt, col));                        // добавляем чип
+        }
+
+        // Передаём в компонент — он сам активирует нужное число чипов и растянет middle
+        consumeComposite.SetItems(items);
     }
 
     // === DRAG & DROP ===
@@ -554,6 +771,8 @@ public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
         // или мы возвращаем карту в HandPanel. ownerZone выставляется самой зоной.
         RefreshLocationVisuals();                           // Обновим слои (градиенты/фон/чёрную базу)
         UpdateEyeButtonVisibility();                        // Кнопка «Глаз» тоже может поменяться
+        UpdateConsumeButtonVisibility();
+        SetRangedIconBlink(false); // при любой смене «родителя» гасим мигание — блок решит, когда включить
     }
 }
 

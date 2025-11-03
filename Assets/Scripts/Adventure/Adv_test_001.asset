@@ -24,148 +24,178 @@ MonoBehaviour:
     visible: 1
     terrain: 0
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 1
     y: 0
     visible: 1
     terrain: 0
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 2
     y: 0
     visible: 1
     terrain: 0
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 3
     y: 0
     visible: 1
     terrain: 0
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 4
     y: 0
     visible: 1
     terrain: 4
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 5
     y: 0
     visible: 1
     terrain: 0
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 0
     y: 1
     visible: 1
     terrain: 0
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 1
     y: 1
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: e9fdc785758a45e45a614619ba095092, type: 2}
+    barriers: 
   - x: 2
     y: 1
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: f47f647435979ad42a6c2c7fe4ad0edd, type: 2}
+    barriers: 
   - x: 3
     y: 1
     visible: 1
     terrain: 1
-    eventAsset: {fileID: 11400000, guid: e9fdc785758a45e45a614619ba095092, type: 2}
+    eventAsset: {fileID: 11400000, guid: f47f647435979ad42a6c2c7fe4ad0edd, type: 2}
+    barriers: 0100000001000000
   - x: 4
     y: 1
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: f47f647435979ad42a6c2c7fe4ad0edd, type: 2}
+    barriers: 
   - x: 5
     y: 1
     visible: 1
     terrain: 0
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 0
     y: 2
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: e9fdc785758a45e45a614619ba095092, type: 2}
+    barriers: 
   - x: 1
     y: 2
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: 758e334e33d756443a9895e1940458b5, type: 2}
+    barriers: 
   - x: 2
     y: 2
     visible: 1
     terrain: 0
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 3
     y: 2
     visible: 1
-    terrain: 2
-    eventAsset: {fileID: 0}
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 832291e4a805866458d8edb00b263bdc, type: 2}
+    barriers: 
   - x: 4
     y: 2
     visible: 1
     terrain: 2
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 5
     y: 2
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: f47f647435979ad42a6c2c7fe4ad0edd, type: 2}
+    barriers: 
   - x: 0
     y: 3
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: e9fdc785758a45e45a614619ba095092, type: 2}
+    barriers: 
   - x: 1
     y: 3
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: 758e334e33d756443a9895e1940458b5, type: 2}
+    barriers: 
   - x: 2
     y: 3
     visible: 1
     terrain: 2
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 3
     y: 3
     visible: 1
     terrain: 1
-    eventAsset: {fileID: 11400000, guid: 4a55bbbb8f3dbf04a8b5712fd464b3f7, type: 2}
+    eventAsset: {fileID: 11400000, guid: 0bd36484b05f4314583356800ec8d274, type: 2}
+    barriers: 
   - x: 4
     y: 3
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: a45b25ae50dd088499140d445170172b, type: 2}
+    barriers: 030000000300000003000000
   - x: 5
     y: 3
     visible: 1
     terrain: 1
-    eventAsset: {fileID: 11400000, guid: f47f647435979ad42a6c2c7fe4ad0edd, type: 2}
+    eventAsset: {fileID: 11400000, guid: e9fdc785758a45e45a614619ba095092, type: 2}
+    barriers: 
   - x: 0
     y: 4
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: b14bb2b2bc89c8242b556bd17f4c8b3c, type: 2}
+    barriers: 
   - x: 1
     y: 4
     visible: 1
-    terrain: 1
-    eventAsset: {fileID: 11400000, guid: b14bb2b2bc89c8242b556bd17f4c8b3c, type: 2}
+    terrain: 4
+    eventAsset: {fileID: 0}
+    barriers: 
   - x: 2
     y: 4
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: b14bb2b2bc89c8242b556bd17f4c8b3c, type: 2}
+    barriers: 
   - x: 3
     y: 4
     visible: 1
     terrain: 3
     eventAsset: {fileID: 0}
+    barriers: 
   - x: 4
     y: 4
     visible: 1
     terrain: 1
-    eventAsset: {fileID: 11400000, guid: 758e334e33d756443a9895e1940458b5, type: 2}
+    eventAsset: {fileID: 11400000, guid: e9fdc785758a45e45a614619ba095092, type: 2}
+    barriers: 
   - x: 5
     y: 4
     visible: 1
     terrain: 1
     eventAsset: {fileID: 11400000, guid: e9fdc785758a45e45a614619ba095092, type: 2}
+    barriers: 

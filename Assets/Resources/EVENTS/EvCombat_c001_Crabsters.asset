@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51e3b76e3e3861b46b0dc7effc6e5933, type: 3}
   m_Name: EvCombat_c001_Crabsters
   m_EditorClassIdentifier: 
-  eventId: c001
+  eventId: EvCombat_c001_Crabsters
   eventName: "\u0411\u0438\u0442\u0432\u0430 \u0441 \u043A\u0440\u0430\u0431\u0441\u0442\u0435\u0440\u0430\u043C\u0438"
   description: 
   icon: {fileID: 2940359857572100557, guid: 664c16a5dba55b248a4644c16db2e618, type: 3}

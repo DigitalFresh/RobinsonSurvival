@@ -58,19 +58,63 @@ public class EnemyView : MonoBehaviour
         if (deadOverlay) deadOverlay.SetActive(false); // «Dead» скрыт
     }
 
-    public void ToggleTraitsPanel()                    // Вкл/выкл описание свойств
+    public void ToggleTraitsPanel()
     {
-        if (!traitsPanel) return;                      // Защита
-        traitsPanel.SetActive(!traitsPanel.activeSelf);// Переключаем активность
-        if (traitsPanel.activeSelf && descriptionText) // Если включили и есть текст
+        if (!traitsPanel) return;
+
+        // Переключаем видимость панели
+        traitsPanel.SetActive(!traitsPanel.activeSelf);
+
+        // Если панель открыта и есть куда писать — собираем текст
+        if (traitsPanel.activeSelf && descriptionText)
         {
-            // Собираем описание: здесь просто перечислим названия ScriptableObject
-            var lines = new List<string>();            // Буфер строк
-            if (data != null && data.traits != null)
-                foreach (var t in data.traits)
-                    if (t) lines.Add(t.name);
-            descriptionText.text = string.Join("\n", lines); // Вставим текст
+            var sb = new System.Text.StringBuilder();
+
+            // 1) TRAITS (EffectDef) — просто выводим имена (displayName необязателен)
+            if (data != null && data.traits != null && data.traits.Count > 0)
+            {
+                for (int i = 0; i < data.traits.Count; i++)
+                {
+                    var tr = data.traits[i];
+                    if (!tr) continue;
+                    sb.AppendLine(tr.name); // коротко и без рефлексии
+                }
+            }
+
+            // 2) TAGS (TagDef) — выводим только те, где есть осмысленное описание
+            if (data != null && data.tags != null && data.tags.Count > 0)
+            {
+                for (int i = 0; i < data.tags.Count; i++)
+                {
+                    var tag = data.tags[i];
+                    if (!tag) continue;
+
+                    // Показываем «Имя: Описание», если описание заполнено
+                    if (!string.IsNullOrWhiteSpace(tag.description))
+                    {
+                        // Имя тега можно взять из id (если оно у тебя «человечное») либо из имени ассета
+                        string tagTitle = !string.IsNullOrEmpty(tag.id) ? tag.id : tag.name;
+                        sb.AppendLine($"{tagTitle}: {tag.description}");
+                    }
+                }
+            }
+
+            // Применяем собранный текст к полю описания
+            descriptionText.text = sb.ToString();
         }
+    }
+
+    // Маленький рефлекшн-хелпер, чтобы не зависеть от точных имён полей SO
+    private static string TryGetString(ScriptableObject so, string field)
+    {
+        if (!so) return null;
+        var f = so.GetType().GetField(field);
+        if (f != null && f.FieldType == typeof(string))
+            return (string)f.GetValue(so);
+        var p = so.GetType().GetProperty(field);
+        if (p != null && p.PropertyType == typeof(string))
+            return (string)p.GetValue(so, null);
+        return null;
     }
 
     public void RebuildHearts()                        // Пересобираем визуал жизней

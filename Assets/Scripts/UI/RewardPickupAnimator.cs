@@ -29,6 +29,10 @@ public class RewardPickupAnimator : MonoBehaviour
     public RectTransform handRightAnchor;            // Якорь правого края панели руки (сюда садятся)
     public GameObject cardIconPrefab;                // Префаб визуала карты для полёта (укажите UICard.prefab)
 
+    [Header("Mid hold")]
+    [Min(0f)] public float midHold = 0.12f;   // пауза в центре экрана перед уходом в сброс
+
+
 
     // === Пул объектов UI ===
     [Header("Pooling")]
@@ -77,6 +81,21 @@ public class RewardPickupAnimator : MonoBehaviour
 
     private Camera _uiCam;                                // Кеш: камера Canvas'а (если не Overlay)
 
+    // ===== FX SEQUENCER: считаем «сколько анимаций сейчас идёт» и очередь HP =====
+    private int _activeFx = 0;                   // сколько «пакетов» FX сейчас выполняется
+    private int _queuedHpBounce = 0;             // накопленные «единицы» HP для отложенной анимации
+    private Sprite _hpIconQueued;                // спрайт HP (передаёт PlayerStatsSimple)
+    private Vector2 _hpFromQueued;               // старт HP-иконки (экран)
+    private Vector2 _hpCenterQueued;             // центр (экран)
+
+    // ===== Публичные скобки и статус занятости =====
+    public bool IsFxBusy => _activeFx > 0;             // true — сейчас что-то летает/анимируется
+
+    public void BeginFxBlock() { FxBegin(); }          // внешняя «скобка»: удерживаем очередь HP
+    public void EndFxBlock() { FxEnd(); }          // закрываем «скобку»: HP-bounce может стартовать
+
+
+
     private void Awake()                                  // Инициализация
     {
         if (Instance != null && Instance != this)         // Если уже есть — удалим дубль
@@ -93,7 +112,44 @@ public class RewardPickupAnimator : MonoBehaviour
         _uiCam = (rootCanvas && rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
             ? rootCanvas.worldCamera
             : null;                                       // Для Overlay камера null
+
         PrewarmPools(); // предсоздадим объекты пула PrewarmPools();
+        if (fxParent) fxParent.SetAsLastSibling();
+    }
+
+    private void FxBegin() { _activeFx++;}     // начать пакет FX
+    private void FxEnd()                         // завершить пакет FX
+    {
+        _activeFx = Mathf.Max(0, _activeFx - 1);
+        //Debug.Log("_activeFx" + _activeFx);
+        if (_activeFx == 0) TryFlushQueuedHP();  // если FX больше не идёт — запускаем отложенный HP-bounce
+    }
+
+    // Публичное: ставим HP-bounce «в очередь» (сыграет после остальных FX)
+    public void EnqueueHealthBounce(int count, Sprite icon, Vector2 fromScreen, Vector2 centerScreen)
+    {
+        if (count <= 0 || icon == null) return;
+        _queuedHpBounce += count;                // копим все запросы до ближайшей «тихой паузы»
+        _hpIconQueued = icon;
+        _hpFromQueued = playerStatsAnchor ? WorldToCanvas(playerStatsAnchor.position, true)      // Левый верх (HUD) из UI→Canvas
+                                        : ScreenToCanvas(new Vector2(Screen.width * 0.15f, Screen.height * 0.85f)); //fromScreen;
+        _hpCenterQueued = centerScreen;
+
+        if (_activeFx == 0) TryFlushQueuedHP();  // если сейчас FX не идёт — запускаем сразу
+    }
+
+    private void TryFlushQueuedHP()
+    {
+        if (_queuedHpBounce <= 0 || _hpIconQueued == null) return;
+
+        int cnt = _queuedHpBounce;               // забираем накопленное
+        _queuedHpBounce = 0;
+
+        FxBegin();                               // HP-блок — тоже «пакет FX»
+        StartCoroutine(PlayHealthBounceRoutine(
+            cnt, _hpIconQueued, _hpFromQueued, _hpCenterQueued,
+            () => FxEnd()
+        ));
     }
 
     // --- Хелперы пула ---
@@ -173,10 +229,12 @@ public class RewardPickupAnimator : MonoBehaviour
 
         // Блокируем ввод на время «синематика»
         ModalGate.Acquire(this);                          // Подняли «шлагбаум»
+        FxBegin(); // <<<
 
         // Стартуем корутину последовательного полёта
         StartCoroutine(PlayQueueRoutine(tile, batch, onBeforeInventoryApply, () =>
         {
+            FxEnd(); // <<<
             ModalGate.Release(this);                      // Опускаем «шлагбаум» после завершения
             onAfterDone?.Invoke();                        // Вызываем финальный коллбек
         }));
@@ -337,13 +395,21 @@ public class RewardPickupAnimator : MonoBehaviour
 
         // Блокируем ввод на время анимации (ModalGate поддерживает множественных владельцев)
         ModalGate.Acquire(this);
+        FxBegin(); // <<<
 
         // Стартуем корутину последовательного прогона
         StartCoroutine(PlayStatRestoreRoutine(tile, restores, () =>
         {
+            FxEnd(); // <<<
             ModalGate.Release(this);    // Снимаем блок после завершения
             onDone?.Invoke();           // Вызываем коллбек
         }));
+    }
+
+    // Запустить «полёт» восстановлений ИЗ ЦЕНТРА (для модалок/абилок)
+    public void PlayStatRestoreFromCenter(List<(EventSO.PlayerStat stat, int amount)> restores, System.Action onDone)
+    {
+        PlayStatRestoreBatch(null, restores, onDone);
     }
 
     // Корутин последовательной отрисовки всех «единиц» восстановления
@@ -355,6 +421,9 @@ public class RewardPickupAnimator : MonoBehaviour
         Vector2 mid = ScreenToCanvas(new Vector2(Screen.width * 0.5f, Screen.height * 0.5f)); // Центр экрана (Canvas)
         Vector2 end = playerStatsAnchor ? WorldToCanvas(playerStatsAnchor.position, true)      // Левый верх (HUD) из UI→Canvas
                                         : mid;                                                 // Если якоря нет — fallback в центр
+        // Если tile не задан (например, восстановление через модалку), стартуем из центра
+        if (tile == null)
+            startBase = mid;
 
         int total = 0;                                                                // Общее количество "единиц" полётов
         foreach (var e in restores) total += Mathf.Max(1, e.amount);                  // Суммируем по всем типам статов
@@ -412,8 +481,10 @@ public class RewardPickupAnimator : MonoBehaviour
     {
         if (penalties == null || penalties.Count == 0) { onDone?.Invoke(); return; }
         ModalGate.Acquire(this);
+        FxBegin(); // <<<
         StartCoroutine(PlayStatPenaltyRoutine(tile, penalties, () =>
         {
+            FxEnd(); // <<<
             ModalGate.Release(this);
             onDone?.Invoke();
         }));
@@ -521,10 +592,12 @@ public class RewardPickupAnimator : MonoBehaviour
 
         // Блокируем ввод на время всей партии полётов
         ModalGate.Acquire(this);                                                          // Подняли «шлагбаум»
+        FxBegin(); // <<<
 
         // Запускаем корутину последовательного проигрыша
         StartCoroutine(PlayCardsRoutine(cards, () =>                                     // Старт корутины
         {
+            FxEnd(); // <<<
             ModalGate.Release(this);                                                      // Опускаем «шлагбаум»
             onDone?.Invoke();                                                             // Сообщаем, что можно добавлять карты в руку
         }));
@@ -648,6 +721,7 @@ public class RewardPickupAnimator : MonoBehaviour
         _inventoryAppliedForThisBatch = false;                       // Сбрасываем флаг «начислено в этой партии»
 
         ModalGate.Acquire(this);                                     // Блокируем ввод на время «синематика»
+        FxBegin(); // <<<
 
         StartCoroutine(PlayQueueFromUIAnchorRoutine(                 // Запускаем корутину партии
             startAnchor,                                             // Стартовый якорь врага (UI)
@@ -655,10 +729,10 @@ public class RewardPickupAnimator : MonoBehaviour
             onBeforeInventoryApply,                                  // Коллбек «до»
             () =>                                                    // Коллбек «после»
             {
-                ModalGate.Release(this);                             // Снимаем блок ввода
-                onAfterDone?.Invoke();                               // Сообщаем о завершении партии
-            }
-        ));
+                FxEnd(); // <<<
+                ModalGate.Release(this);
+                onAfterDone?.Invoke();
+        }));
     }
     // полёт одного ресурса с post-логикой раскрытия слота ---
     private IEnumerator FlyAndRevealRoutine(                          // Обёртка поверх «одного полёта»
@@ -796,4 +870,248 @@ public class RewardPickupAnimator : MonoBehaviour
         if (rt) ReleaseResIconByRT(rt);                                // Удаляем «летящую» иконку
         yield break;                                                   // Готово
     }
+
+    // ПУБЛИЧНЫЙ МЕТОД: «из колоды → центр → в сброс» для N карт (только визуал)
+    // Показываем ИМЕННО те карты, что вы перекинули из колоды в сброс.
+    public void PlayDeckToDiscard(
+        List<CardInstance> cards,             // какие карты улетают
+        RectTransform from,                   // якорь колоды (UI)
+        RectTransform to,                     // якорь сброса (UI)
+        System.Action onDone                  // коллбек после всей партии
+    )
+    {
+        if (cards == null || cards.Count == 0 || from == null || to == null || fxParent == null || cardIconPrefab == null)
+        {
+            onDone?.Invoke();
+            return;
+        }
+
+        FxBegin(); // <<< добавьте
+        StartCoroutine(PlayDeckToDiscardCardsRoutine(cards, from, to, () =>
+        {
+            FxEnd();          // <<< добавьте
+            onDone?.Invoke();
+        }));
+    }
+
+    // ПРИВАТНАЯ КОРУТИНА: запускает «count» полётов по одному, со стаггером
+    private System.Collections.IEnumerator PlayDeckToDiscardCardsRoutine(
+    List<CardInstance> cards,
+    RectTransform from,
+    RectTransform to,
+    System.Action onDone
+)
+    {
+        Vector2 startBase = WorldToCanvas(from.position, true);  // UI→Canvas
+        Vector2 mid = ScreenToCanvas(new Vector2(Screen.width * 0.2f, Screen.height * 0.75f));
+        Vector2 endBase = WorldToCanvas(to.position, true);    // UI→Canvas
+
+        int completed = 0;
+
+        for (int i = 0; i < cards.Count; i++)
+        {
+            var inst = cards[i];                                  // та самая карта
+            Vector2 start = startBase;
+            Vector2 end = endBase;
+
+            // каждый полёт — отдельная корутина
+            StartCoroutine(FlyOneDeckToDiscardOnce(
+                inst,                                             // ← передаём CardInstance
+                start, mid, end,
+                () => { completed++; }
+            ));
+
+            if (useStagger && cardsStagger > 0f && i < cards.Count - 1)
+                yield return new WaitForSeconds(cardsStagger);
+        }
+
+        while (completed < cards.Count)
+            yield return null;
+
+        onDone?.Invoke();
+    }
+
+    // ПРИВАТНАЯ КОРУТИНА: один полёт «колода → центр (scale↑) → сброс (scale↓)»
+    private System.Collections.IEnumerator FlyOneDeckToDiscardOnce(
+    CardInstance inst,                     // КАКАЯ карта визуализируется
+    Vector2 start,                         // Canvas: старт
+    Vector2 mid,                           // Canvas: центр экрана
+    Vector2 end,                           // Canvas: точка сброса
+    System.Action onFinish
+)
+    {
+        var go = GetPooledCardIcon();                          // берём GO из пула (префаб UICard)
+        var rt = go ? (go.transform as RectTransform) : null;
+        if (!go || !rt) { onFinish?.Invoke(); yield break; }
+
+        // стартовые трансформы
+        rt.anchoredPosition = start;
+        rt.localScale = Vector3.one;
+
+        // попробуем привязать визуал к КОНКРЕТНОЙ карте
+        var view = go.GetComponent<CardView>();
+        if (view != null && inst != null)
+        {
+            view.Bind(inst);                                   // показать арт/статы именно этой карты
+                                                               // при желании отключи взаимодействие на время полёта:
+                                                               // view.SetRaycastsEnabled(false);
+                                                               // view.SetDraggable(false);
+        }
+
+        // Фаза A: колода → центр (1 → 1.5)
+        yield return Tween(rt, start, mid, 1f, 1.3f, phase1Time);
+
+        // === NEW: короткая пауза в центре
+        if (midHold > 0f)
+            yield return new WaitForSeconds(midHold);
+
+        // Фаза B: центр → сброс (1.5 → 1.0), используем «быструю» длительность, если задана
+        float tPhaseB = (phase2TimeDirect > 0f) ? phase2TimeDirect : phase2Time;
+        yield return Tween(rt, mid, end, 1.3f, 1.0f, tPhaseB);
+
+        // Вернуть объект в пул (для карт — ТОЛЬКО cardIcon; ресурсный пул не трогаем)
+        ReleaseCardIcon(go);
+
+        onFinish?.Invoke();
+    }
+
+    // 1) Ресурс → центр → иконка колоды
+    public void PlayResourceToDeck(int count, Sprite icon, Vector2 fromScreen, Vector2 centerScreen, RectTransform to, System.Action onDone)
+    {
+        if (count <= 0 || icon == null || to == null || fxParent == null) { onDone?.Invoke(); return; }
+
+        FxBegin(); // <<<
+        StartCoroutine(PlayResourceToDeckRoutine(count, icon, fromScreen, centerScreen, to, () =>
+        {
+            FxEnd(); // <<<
+            onDone?.Invoke();
+        }));
+    }
+
+    private IEnumerator PlayResourceToDeckRoutine(int count, Sprite icon, Vector2 fromScreen, Vector2 centerScreen, RectTransform to, System.Action onDone)
+    {
+        Vector2 start = ScreenToCanvas(fromScreen);
+        Vector2 mid = ScreenToCanvas(centerScreen);
+        Vector2 end = WorldToCanvas(to.position, true);
+        //yield return new WaitForSeconds(1f);
+        int done = 0;
+        for (int i = 0; i < count; i++)
+        {
+            StartCoroutine(FlyResOnce(icon, start, mid, end, () => done++));
+            if (useStagger && cardsStagger > 0f && i < count - 1)
+                yield return new WaitForSeconds(cardsStagger);
+        }
+        while (done < count) yield return null;
+        onDone?.Invoke();
+    }
+
+    // Полёт одной «фишки ресурса» — ИСПОЛЬЗУЕМ RewardItemUI.Bind, а не GetComponent<Image>()
+    private IEnumerator FlyResOnce(Sprite icon, Vector2 start, Vector2 mid, Vector2 end, System.Action onFinish)
+    {
+        var ui = GetPooledResIcon();                                // берём RewardItemUI из пула
+        var rt = ui ? (ui.transform as RectTransform) : null;
+        if (!ui || !rt) { onFinish?.Invoke(); yield break; }
+
+        // Правильный способ: биндим временную "награду" только ради иконки
+        var temp = new EventSO.Reward
+        {
+            type = EventSO.RewardType.Resource,
+            resource = ScriptableObject.CreateInstance<ResourceDef>(),
+            amount = 1
+        };
+        temp.resource.icon = icon;                                   // вот иконка
+        ui.Bind(temp);                                               // отрисовка на правильном Image внутри префаба
+        ui.SetGateState(true);                                       // рамка «ок»
+        if (ui.amountText) ui.amountText.gameObject.SetActive(false);// цифру прячем
+
+        rt.anchoredPosition = start;
+        rt.localScale = Vector3.one;
+
+        // A: в центр (1 → 1.3), остановка
+        yield return Tween(rt, start, mid, 1f, 1.3f, phase1Time);
+        if (midHold > 0f) yield return new WaitForSeconds(midHold);
+
+        // B: центр → цель (1.3 → 1)
+        float tPhaseB = (phase2TimeDirect > 0f) ? phase2TimeDirect : phase2Time;
+        yield return Tween(rt, mid, end, 1.3f, 1.0f, tPhaseB);
+
+        ReleaseResIcon(ui);                                          // вернуть в пул
+        onFinish?.Invoke();
+    }
+
+
+    // 2) Потеря здоровья: «из лев.низа → центр (пауза) → обратно»
+    public void PlayHealthBounce(int count, Sprite icon, Vector2 fromScreen, Vector2 centerScreen, System.Action onDone)
+    {
+        if (count <= 0 || icon == null || fxParent == null) { onDone?.Invoke(); return; }
+        StartCoroutine(PlayHealthBounceRoutine(count, icon, fromScreen, centerScreen, onDone));
+    }
+
+    private IEnumerator PlayHealthBounceRoutine(int count, Sprite icon, Vector2 fromScreen, Vector2 centerScreen, System.Action onDone)
+    {
+        Vector2 start = ScreenToCanvas(fromScreen);
+        Vector2 mid = ScreenToCanvas(centerScreen);
+
+        //yield return new WaitForSeconds(1f);
+        int finished = 0;
+        for (int i = 0; i < count; i++)
+        {
+            StartCoroutine(FlyHealthOnce(icon, start, mid, () => finished++));
+            if (useStagger && cardsStagger > 0f && i < count - 1)
+                yield return new WaitForSeconds(cardsStagger);
+        }
+        while (finished < count) yield return null;
+        onDone?.Invoke();
+    }
+
+    private IEnumerator FlyHealthOnce(Sprite icon, Vector2 start, Vector2 mid, System.Action onFinish)
+    {
+        var ui = GetPooledResIcon();
+        var rt = ui ? (ui.transform as RectTransform) : null;
+        if (!ui || !rt) { onFinish?.Invoke(); yield break; }
+
+        // Тоже биндим через RewardItemUI, НЕ через GetComponent<Image>()
+        var temp = new EventSO.Reward
+        {
+            type = EventSO.RewardType.Resource,
+            resource = ScriptableObject.CreateInstance<ResourceDef>(),
+            amount = 1
+        };
+        temp.resource.icon = icon;
+        ui.Bind(temp);
+        ui.SetGateState(true);
+        if (ui.amountText) ui.amountText.gameObject.SetActive(false);
+
+        rt.anchoredPosition = start;
+        rt.localScale = Vector3.one;
+
+        yield return Tween(rt, start, mid, 1f, 1.35f, phase1Time);
+        if (midHold > 0f) yield return new WaitForSeconds(midHold);
+
+        float tBack = (phase2TimeDirect > 0f) ? phase2TimeDirect : phase2Time;
+        yield return Tween(rt, mid, start, 1.35f, 1.0f, tBack);
+
+        ReleaseResIcon(ui);
+        onFinish?.Invoke();
+    }
+
+
+#if UNITY_EDITOR
+    [ContextMenu("TEST: Resource→Deck x2")]
+    private void TEST_ResourceToDeck()
+    {
+        var hud = FindFirstObjectByType<DeckHUD>(FindObjectsInactive.Include);
+        if (!hud || !hud.deckIcon || rewardStatSprites == null || rewardStatSprites.Length < 2) { Debug.LogWarning("No HUD or icons"); return; }
+        PlayResourceToDeck(2, rewardStatSprites[1], new Vector2(40, Screen.height - 40), new Vector2(Screen.width / 2f, Screen.height / 2f), hud.deckIcon.rectTransform, null);
+    }
+
+    [ContextMenu("TEST: HP Bounce x3")]
+    private void TEST_HPBounce()
+    {
+        if (penaltyStatSprites == null || penaltyStatSprites.Length < 4) { Debug.LogWarning("No HP icon"); return; }
+        EnqueueHealthBounce(3, penaltyStatSprites[3], new Vector2(40, 40), new Vector2(Screen.width / 2f, Screen.height / 2f));
+    }
+#endif
+
+
 }

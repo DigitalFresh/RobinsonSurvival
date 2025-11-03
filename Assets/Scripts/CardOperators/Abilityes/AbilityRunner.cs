@@ -1,5 +1,6 @@
 ﻿using UnityEngine;                      // Debug
 using System.Linq;                      // FirstOrDefault
+using System.Collections.Generic; // наверху файла, если нет
 
 public static class AbilityRunner
 {
@@ -41,6 +42,16 @@ public static class AbilityRunner
                     return; // прерываемся до клика игрока
                 }
 
+                if (cost is ConfirmConsumeCostEffectDef consumeConfirm)
+                {
+                    consumeConfirm.ShowAndContinue(ctx, () =>
+                    {
+                        // По подтверждению продолжаем со следующего cost
+                        RunAbility(ctx, i + 1, effectIndex);
+                    });
+                    return; // выходим до ответа игрока
+                }
+
                 // Обычная стоимость
                 bool ok = cost.Execute(ctx);
                 if (!ok) { Debug.Log("[AbilityRunner] Cost failed, abort."); return; }
@@ -67,6 +78,39 @@ public static class AbilityRunner
                     return;                                                                            // Выходим из метода — ждём анимацию
                 }
 
+                if (eff is RestoreStatEffectDef)
+                {
+                    // 1) Включаем режим сборки
+                    ctx.collectRestoreFx = true;
+                    ctx.restoreFxBuffer = new List<(EventSO.PlayerStat, int)>();
+
+                    // 2) Применяем подряд ИМЕННО RestoreStatEffectDef, чтобы они только буферизовались
+                    int k = j;
+                    for (; k < ability.effects.Length; k++)
+                    {
+                        var r = ability.effects[k] as RestoreStatEffectDef;
+                        if (r == null) break;              // упёрлись в следующий «не-restore» — хватит
+                        r.Execute(ctx);                    // изменяет статы и складывает (stat, amount) в ctx.restoreFxBuffer
+                    }
+
+                    // 3) Выключаем сборку
+                    ctx.collectRestoreFx = false;
+
+                    // 4) Если что-то накопили — запускаем последовательную анимацию из центра и продол­жаем пайплайн после onDone
+                    if (ctx.restoreFxBuffer != null && ctx.restoreFxBuffer.Count > 0 && RewardPickupAnimator.Instance != null)
+                    {
+                        RewardPickupAnimator.Instance.PlayStatRestoreFromCenter(ctx.restoreFxBuffer, () =>
+                        {
+                            RunAbility(ctx, costIndex, k); // продолжаем со следующего эффекта после пачки
+                        });
+                        return; // ждём анимацию
+                    }
+
+                    // 5) Если нечего анимировать — просто перескочим эти эффекты
+                    j = k - 1;   // т.к. for увеличит j ещё раз
+                    continue;
+                }
+
                 bool ok = eff.Execute(ctx);
                 if (!ok) { Debug.Log("[AbilityRunner] Effect failed."); }
             }
@@ -80,56 +124,3 @@ public static class AbilityRunner
     
 }
 
-
-
-//using UnityEngine;                              // Debug
-//using System.Linq;                              // FirstOrDefault
-
-//// Статический «исполнитель» способностей — применяет costs, затем effects
-//public static class AbilityRunner
-//{
-//    // Выполнить первую способность с триггером ManualActivate
-//    public static bool RunManualAbility(CardInstance inst) // Возвращает успех/провал
-//    {
-//        if (inst == null || inst.def == null || inst.def.abilities == null) return false; // Нет способностей — нечего делать
-
-//        // Ищем первую подходящую способность
-//        var ability = inst.def.abilities.FirstOrDefault(a => a != null && a.trigger == AbilityTrigger.ManualActivate);
-//        if (ability == null) return false;       // Ничего не нашли — выходим
-
-//        // Формируем контекст
-//        var ctx = new EffectContext(inst);       // Контекст выполнения (hand, deck, stats и т.п.)
-
-//        // Сначала — «стоимости»
-//        if (ability.costs != null)               // Если есть список стоимостей
-//        {
-//            foreach (var cost in ability.costs)  // Перебираем их по порядку
-//            {
-//                if (cost == null) continue;      // Пропускаем пустые элементы
-//                bool ok = cost.Execute(ctx);     // Пытаемся применить стоимость
-//                if (!ok)                         // Если какая-то стоимость провалилась
-//                {
-//                    Debug.Log("[AbilityRunner] Cost failed, abort."); // Логируем
-//                    return false;               // Прерываем выполнение способности
-//                }
-//            }
-//        }
-
-//        // Затем — эффекты
-//        if (ability.effects != null)             // Если есть список эффектов
-//        {
-//            foreach (var eff in ability.effects) // Перебираем их по порядку
-//            {
-//                if (eff == null) continue;       // Пропускаем пустые элементы
-//                bool ok = eff.Execute(ctx);      // Применяем эффект
-//                if (!ok)                         // Если эффект не сработал
-//                {
-//                    Debug.Log("[AbilityRunner] Effect failed."); // Лог
-//                    // По простой логике не откатываем; можно добавить rollback по желанию
-//                }
-//            }
-//        }
-
-//        return true;                              // Успех
-//    }
-//}

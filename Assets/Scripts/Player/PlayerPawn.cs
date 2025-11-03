@@ -1,117 +1,131 @@
-﻿using UnityEngine; // Базовые типы Unity
-using System.Collections;            // ДЛЯ IEnumerator  // --- ADDED START ---
-using System.Collections.Generic;    // для List
+﻿using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
-public class PlayerPawn : MonoBehaviour // Скрипт «фишки» игрока на карте
+public class PlayerPawn : MonoBehaviour
 {
     public static PlayerPawn Instance;
-    public int x;                    // Текущий X игрока (столбец)
-    public int y;                    // Текущий Y игрока (строка)
+    public int x;
+    public int y;
 
     [Header("Visual")]
-    public Transform visualRoot;                 // Дочерний трансформ со спрайтом — будем вращать его, а не логику узла
-    public SpriteRenderer spriteRenderer;        // Рендерер спрайта на фигурке
-    public float facingAngleOffset = 0f;         // Сдвиг, если исходный спрайт «смотрит» не по оси X
-    public bool flipXInsteadOfRotate = false;    // Если нужно не крутить, а только отражать по X (для 2D-стиля)
+    public Transform visualRoot;
+    public SpriteRenderer spriteRenderer;
+    public float facingAngleOffset = 0f;
+    public bool flipXInsteadOfRotate = false;
 
-    [Header("Animation / Animator")]                          // Заголовок секции в инспекторе
-    public Animator animator;                                  // Ссылка на Animator на визуальном объекте (с SpriteRenderer)
+    [Header("Animation / Animator")]
+    public Animator animator;
     [Tooltip("Имя bool-параметра в Animator, который включает походку")]
-    public string isMovingParam = "IsMoving";                  // Имя bool-параметра (настроите в Animator)
-                                                               // --- ADDED END ---
+    public string isMovingParam = "IsMoving";
 
-    public void PlaceAt(int newX, int newY) // Поставить фишку на координаты (без анимации)
+    // ===== NEW: пакетный режим анимации =====
+    // Пока счётчик > 0, считаем что идёт «длинное» перемещение; аниматор включён.
+    private int _moveBatchDepth = 0;
+
+    /// Включить «пакет» — анимация будет крутиться на протяжении всей серии шагов.
+    public void BeginMoveBatch()
     {
-        x = newX;                                           // Сохраняем X
-        y = newY;                                           // Сохраняем Y
-                                                            // 1) Пытаемся получить контроллер карты через синглтон...
-        //var map = HexMapController.Instance;
-
-        //// 2) ...если синглтон ещё не инициализирован (в редакторе такое возможно),
-        ////    используем новое API, которое ищет даже на выключенных объектах сцены.
-        //if (!map)
-        //    map = FindFirstObjectByType<HexMapController>(FindObjectsInactive.Include);
-
-        //// 3) Если контроллер нашли — пробуем запросить тайл по координатам
-        //var tile = map != null ? map.GetHex(x, y) : null;
-
-        var tile = HexMapController.Instance.GetHex(x, y);  // Находим тайл по координатам
-        if (tile != null)                                   // Если нашли
-        {
-            transform.position = tile.transform.position;   // Перемещаем фишку в позицию тайла
-        }
+        _moveBatchDepth++;                                    // увеличиваем глубину пакета
+        if (animator) animator.SetBool(isMovingParam, true);  // включаем походку (если ещё не включена)
     }
 
-    public bool CanMoveTo(HexTile target) // Проверяем, можно ли идти на цель (соседний, проходимый)
+    /// Выключить «пакет» — если это был последний, гасим анимацию.
+    public void EndMoveBatch()
     {
-        if (target == null) return false;                                 // Нет цели — нельзя
-        if (!target.isPassable) return false;                              // Непроходим — нельзя
-        var neighbors = HexMapController.Instance.GetNeighbors(x, y);      // Берём соседей текущей позиции
-        return neighbors.Contains(target);                                 // Разрешаем, если цель — один из соседей
+        _moveBatchDepth = Mathf.Max(0, _moveBatchDepth - 1);  // снижаем глубину (не ниже 0)
+        if (_moveBatchDepth == 0 && animator)                 // если пакетов больше нет
+            animator.SetBool(isMovingParam, false);           // выключаем походку
+    }
+    // ========================================
+
+    public void PlaceAt(int newX, int newY)
+    {
+        x = newX;                                            // сохраняем логические координаты
+        y = newY;
+        var tile = HexMapController.Instance.GetHex(x, y);   // берём тайл по координатам
+        if (tile != null)
+            transform.position = tile.transform.position;    // ставим трансформ на позицию тайла
     }
 
-    public void MoveTo(HexTile target) // Переместиться на соседний тайл
+    public bool CanMoveTo(HexTile target)
     {
-        if (!CanMoveTo(target)) return;                                    // Стоп, если нельзя
-        StartCoroutine(MovePawnSmooth(target, 0.8f));
-        // transform.position = target.transform.position;                    // Двигаем фишку
-        x = target.x;                                                      // Обновляем X
+        if (target == null) return false;                                    // нет цели
+        if (!target.isPassable) return false;                                 // не проходим
+        var neighbors = HexMapController.Instance.GetNeighbors(x, y);         // соседи текущей клетки
+        return neighbors.Contains(target);                                    // можно, если цель — сосед
+    }
+
+    // === Публичный ход на соседний тайл (обычный, вне «пакета») ===
+    public void MoveTo(HexTile target)
+    {
+        MoveToInternal(target, inBatch: false);                               // используем общий метод
+    }
+
+    // === NEW: ход на соседний тайл «внутри пакета» (используется при длинном пути) ===
+    public void MoveToInPath(HexTile target)
+    {
+        MoveToInternal(target, inBatch: true);                                // не трогаем аниматор на сегменте
+    }
+
+    // Общая логика перемещения на соседний тайл
+    private void MoveToInternal(HexTile target, bool inBatch)
+    {
+        if (!CanMoveTo(target)) return;                                       // защитная проверка
+        StartCoroutine(MovePawnSmooth(target, 0.8f, inBatch));                // запускаем корутину шага
+        x = target.x;                                                         // обновляем логические координаты
         y = target.y;
-        HexMapController.Instance.RevealNeighbors(x, y);                   // Открываем соседей новой позиции
-        // Здесь позже вставим: если на тайле событие — запустить его отыгрыш и переместить игрока по правилам DD
+        HexMapController.Instance.RevealNeighbors(x, y);                      // открываем соседей новой позиции
     }
-    private IEnumerator MovePawnSmooth(HexTile target, float speedUnitsPerSec = 1f)
+
+    // Плавный шаг к соседнему тайлу; inBatch=true → не переключаем аниматор здесь
+    private IEnumerator MovePawnSmooth(HexTile target, float speedUnitsPerSec = 1f, bool inBatch = false)
     {
-        if (!target) yield break;                  // Защита от null
-        var tr = transform;                            // Трансформ фишки
-        Vector3 from = tr.position;                         // Начальная позиция
-        Vector3 to = target.transform.position;             // Финальная позиция
-        float dist = Vector3.Distance(from, to);            // Расстояние
-        float dur = Mathf.Max(0.1f, dist / Mathf.Max(0.001f, speedUnitsPerSec)); // Длительность перемещения
+        if (!target) yield break;                                             // защита от null
+        var tr = transform;                                                   // кэш трансформа
+        Vector3 from = tr.position;                                           // стартовая позиция
+        Vector3 to = target.transform.position;                               // целевая позиция
+        float dist = Vector3.Distance(from, to);                              // расстояние до цели
+        float dur = Mathf.Max(0.1f, dist / Mathf.Max(0.001f, speedUnitsPerSec)); // длительность шага
         float t = 0f;
-        // Развернуть визуал в сторону цели
-        FaceTowards(from, to); // Повернуть спрайт «куда идём»
 
-        if (animator)                                               // Если Animator назначен
-            animator.SetBool(isMovingParam, true);                  // ВКЛ: походка (переход Idle→Walk)
+        FaceTowards(from, to);                                                // поворачиваем визуал «куда идём»
 
-        while (t < dur)                                     // Пока не дошли
+        // Если это одиночный шаг (вне пакета) — включаем походку здесь
+        if (!inBatch && animator)
+            animator.SetBool(isMovingParam, true);
+
+        while (t < dur)                                                       // интерполируем до конца
         {
-            t += Time.deltaTime;                            // Тик времени
-            float k = Mathf.SmoothStep(0f, 1f, t / dur);    // S-кривая
-            tr.position = Vector3.LerpUnclamped(from, to, k); // Лерп позиции
-            yield return null;                              // Ждём кадр
+            t += Time.deltaTime;                                              // накапливаем время
+            float k = Mathf.SmoothStep(0f, 1f, t / dur);                      // сглаженная кривая
+            tr.position = Vector3.LerpUnclamped(from, to, k);                 // перемещаемся по кривой
+            yield return null;                                                // ждём кадр
         }
-        
-        tr.position = to;                                   // Фиксируем позицию
 
-        if (animator)                                               // Если Animator назначен
-            animator.SetBool(isMovingParam, false);                 // ВЫКЛ: походка (переход Walk→Idle)
+        tr.position = to;                                                     // фиксируем финальную позицию
 
+        // Если это одиночный шаг (вне пакета) — выключаем походку здесь
+        if (!inBatch && animator)
+            animator.SetBool(isMovingParam, false);
     }
 
-    // --- face direction ---
-    private void FaceTowards(Vector3 fromWorld, Vector3 toWorld) // Повернуть визуал к цели
+    // Поворот визуала к точке назначения
+    private void FaceTowards(Vector3 fromWorld, Vector3 toWorld)
     {
-        Vector3 dir = (toWorld - fromWorld);     // Вектор направления
-        dir.z = 0f;                              // 2D — игнорируем Z
-        if (dir.sqrMagnitude < 0.0001f) return;  // Нечего поворачивать
+        Vector3 dir = (toWorld - fromWorld);
+        dir.z = 0f;
+        if (dir.sqrMagnitude < 0.0001f) return;
 
-        if (flipXInsteadOfRotate && spriteRenderer) // Вариант «только отражать по X»
+        if (flipXInsteadOfRotate && spriteRenderer)
         {
-            // Если движение «влево» — flipX = true, вправо — false
-            spriteRenderer.flipX = (dir.x < 0f); // Простое правило для 2D
-            if (visualRoot)                      // При этом держим общий поворот = 0 (на всякий)
-                visualRoot.rotation = Quaternion.identity;
+            spriteRenderer.flipX = (dir.x < 0f);                              // отражаем спрайт по X вместо поворота
+            if (visualRoot) visualRoot.rotation = Quaternion.identity;        // сбрасываем поворот корня визуала
             return;
         }
 
-        // Вариант «реальный поворот» вокруг Z
-        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg; // Угол в градусах
-        angle += facingAngleOffset;               // Компенсация исходной ориентации спрайта
-        if (visualRoot)                           // Вращаем только «визуальный» дочерний узел
-            visualRoot.rotation = Quaternion.Euler(0f, 0f, angle);
+        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;              // угол направления
+        angle += facingAngleOffset;                                           // поправка, если исходный спрайт «смотрит» не вправо
+        if (visualRoot) visualRoot.rotation = Quaternion.Euler(0f, 0f, angle);// поворачиваем дочерний визуальный узел
     }
-
-
 }

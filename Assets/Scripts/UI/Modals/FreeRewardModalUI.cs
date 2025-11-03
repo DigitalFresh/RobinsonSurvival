@@ -117,6 +117,127 @@ public class FreeRewardModalUI : MonoBehaviour
        // ModalGate.Acquire(this); // заблокируем внешние клики, как и другие модалки
     }
 
+    // Показ на «голых данных», без ScriptableObject
+    public void ShowRuntime(string title, string description, Sprite icon, List<(Sprite icon, string label)> lines, System.Action onOkDone)
+    {
+        // Заголовок/описание/иконка
+        if (rewardTitle) rewardTitle.text = string.IsNullOrEmpty(title) ? "Награда" : title;
+        if (rewardDesc) rewardDesc.text = description ?? "";
+        if (rewardIcon)
+        {
+            rewardIcon.enabled = (icon != null);
+            rewardIcon.sprite = icon;
+        }
+
+        // Список эффектов
+        if (effectsParent && effectLinePrefab)
+        {
+            // Очистить предыдущие элементы
+            for (int i = effectsParent.childCount - 1; i >= 0; i--)
+                Destroy(effectsParent.GetChild(i).gameObject);
+
+            // Если массив не дан — скрываем блок
+            bool hasLines = (lines != null && lines.Count > 0);
+            effectsParent.gameObject.SetActive(hasLines);
+
+            if (hasLines && effectLinePrefab)
+            {
+                foreach (var (ic, txt) in lines)
+                {
+                    var go = Instantiate(effectLinePrefab, effectsParent);
+                    var img = go.GetComponentInChildren<UnityEngine.UI.Image>(true);
+                    var tx = go.GetComponentInChildren<TMPro.TextMeshProUGUI>(true);
+                    if (img) { img.enabled = (ic != null); img.sprite = ic; }
+                    if (tx) tx.text = txt ?? "";
+                }
+            }
+        }
+
+        // Показать окно
+        canvasGroup.alpha = 1f;
+        canvasGroup.blocksRaycasts = true;
+        canvasGroup.interactable = true;
+        gameObject.SetActive(true);
+
+        // Подменим обработчик OK на разовый коллбек
+        if (okButton)
+        {
+            okButton.onClick.RemoveAllListeners();
+            okButton.onClick.AddListener(() =>
+            {
+                Hide();
+                onOkDone?.Invoke();
+            });
+        }
+    }
+
+    /// Показать модалку с заголовком/описанием/картинкой и ресурсными строками
+    /// (каждая строка — полноценный префаб res_1 с количеством и подписью).
+    public void ShowRuntimeResources(
+        string title, string description, Sprite icon,
+        List<(ResourceDef def, int amount)> resources,
+        System.Action onOkDone)
+    {
+        // Заголовок/описание/картинка
+        if (rewardTitle) rewardTitle.text = string.IsNullOrEmpty(title) ? "Награда" : title;
+        if (rewardDesc) rewardDesc.text = description ?? "";
+        if (rewardIcon)
+        {
+            rewardIcon.enabled = (icon != null);
+            rewardIcon.sprite = icon;
+        }
+
+        // Список строк (ресурсы)
+        if (effectsParent)
+        {
+            // чистим старые
+            for (int i = effectsParent.childCount - 1; i >= 0; i--)
+                Destroy(effectsParent.GetChild(i).gameObject);
+
+            bool hasAny = (resources != null && resources.Count > 0);
+            effectsParent.gameObject.SetActive(hasAny);
+
+            if (hasAny && effectLinePrefab)
+            {
+                foreach (var (def, amount) in resources)
+                {
+                    var go = Instantiate(effectLinePrefab, effectsParent);
+                    var line = go.GetComponent<RewardEffectLineUI>();
+                    if (line != null)
+                        line.BindResource(def, amount); // <<< ГЛАВНОЕ МЕСТО
+                    else
+                    {
+                        // фолбэк на "иконка+текст", если по какой-то причине нет компонента
+                        var img = go.GetComponentInChildren<Image>(true);
+                        var tx = go.GetComponentInChildren<TextMeshProUGUI>(true);
+                        if (img) { img.enabled = (def && def.icon); img.sprite = def ? def.icon : null; }
+                        if (tx) tx.text = def ? $"{def.displayName} ×{amount}" : $"Resource ×{amount}";
+                    }
+                }
+            }
+        }
+
+        // Показ окна (по образцу InfoModalUI)
+        canvasGroup.alpha = 1f;
+        canvasGroup.blocksRaycasts = true;
+        canvasGroup.interactable = true;
+        gameObject.SetActive(true);
+
+        // Кнопка ОК
+        if (okButton)
+        {
+            okButton.onClick.RemoveAllListeners();
+            okButton.onClick.AddListener(() =>
+            {
+                Hide();
+                onOkDone?.Invoke();
+            });
+        }
+
+        // Если пользуешься глобальным гейтом — можно активировать здесь
+        ModalGate.Acquire(this);
+    }
+
     private void OnOk()
     {
         // если есть ещё элементы очереди — покажем следующий

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb4cabc767ced22419efbe1131cac47c, type: 3}
+  m_Name: Enemy_004_Enot
+  m_EditorClassIdentifier: Assembly-CSharp::EnemySO
+  displayName: "\u0415\u043D\u043E\u0442"
+  sprite: {fileID: 4219408374050531409, guid: 3a0b84b41ffc0cc4bbe3fc9fa65467d0, type: 3}
+  attack: 3
+  armor: 0
+  maxHP: 3
+  tags: []
+  loot:
+  - resource: {fileID: 11400000, guid: 83addebef9de01f418682ea9a69a14df, type: 2}
+    amount: 3
+  - resource: {fileID: 11400000, guid: a98744c02e61db34b9cc63e353646ade, type: 2}
+    amount: 1
+  traits: []

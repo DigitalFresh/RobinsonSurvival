@@ -1,21 +1,22 @@
+п»їusing System.Collections.Generic;
 using UnityEngine;
-using System.Collections.Generic;
+using static AdventureAsset;
 
 /// <summary>
-/// Ассет приключения: хранит размеры сетки и список ячеек с типами/видимостью/событиями.
-/// Координаты — как у твоего HexTile: x, y (целые индексы сетки).
+/// РђСЃСЃРµС‚ РїСЂРёРєР»СЋС‡РµРЅРёСЏ: С…СЂР°РЅРёС‚ СЂР°Р·РјРµСЂС‹ СЃРµС‚РєРё Рё СЃРїРёСЃРѕРє СЏС‡РµРµРє СЃ С‚РёРїР°РјРё/РІРёРґРёРјРѕСЃС‚СЊСЋ/СЃРѕР±С‹С‚РёСЏРјРё.
+/// РљРѕРѕСЂРґРёРЅР°С‚С‹ вЂ” РєР°Рє Сѓ С‚РІРѕРµРіРѕ HexTile: x, y (С†РµР»С‹Рµ РёРЅРґРµРєСЃС‹ СЃРµС‚РєРё).
 /// </summary>
 [CreateAssetMenu(menuName = "Robinson/Adventure/Adventure Asset", fileName = "AdventureAsset")]
 public class AdventureAsset : ScriptableObject
 {
     [Header("Meta")]
-    [Tooltip("Уникальный ID приключения (для аналитики/сейвов).")]
+    [Tooltip("РЈРЅРёРєР°Р»СЊРЅС‹Р№ ID РїСЂРёРєР»СЋС‡РµРЅРёСЏ (РґР»СЏ Р°РЅР°Р»РёС‚РёРєРё/СЃРµР№РІРѕРІ).")]
     public string adventureId = System.Guid.NewGuid().ToString();
 
-    [Tooltip("Имя для отображения в UI/дебаге.")]
+    [Tooltip("РРјСЏ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ РІ UI/РґРµР±Р°РіРµ.")]
     public string displayName = "New Adventure";
 
-    [Tooltip("Версия ассета (инкремент при изменениях).")]
+    [Tooltip("Р’РµСЂСЃРёСЏ Р°СЃСЃРµС‚Р° (РёРЅРєСЂРµРјРµРЅС‚ РїСЂРё РёР·РјРµРЅРµРЅРёСЏС…).")]
     public int version = 1;
 
     [Header("Grid")]
@@ -23,10 +24,20 @@ public class AdventureAsset : ScriptableObject
     [Min(1)] public int height = 5;
 
     [Header("Cells")]
-    [Tooltip("Список определений клеток. Должна быть хотя бы одна запись на каждую координату (x,y), если клетка нужна.")]
+    [Tooltip("РЎРїРёСЃРѕРє РѕРїСЂРµРґРµР»РµРЅРёР№ РєР»РµС‚РѕРє. Р”РѕР»Р¶РЅР° Р±С‹С‚СЊ С…РѕС‚СЏ Р±С‹ РѕРґРЅР° Р·Р°РїРёСЃСЊ РЅР° РєР°Р¶РґСѓСЋ РєРѕРѕСЂРґРёРЅР°С‚Сѓ (x,y), РµСЃР»Рё РєР»РµС‚РєР° РЅСѓР¶РЅР°.")]
     public List<AdventureCell> cells = new List<AdventureCell>();
 
-    /// <summary>Вернуть клетку по координатам (или null, если отсутствует).</summary>
+    [System.Serializable]
+    public class SpritePickRule
+    {
+        [Tooltip("Р•СЃР»Рё >= 0 вЂ” РёСЃРїРѕР»СЊР·СѓРµРј РёРјРµРЅРЅРѕ СЌС‚РѕС‚ РёРЅРґРµРєСЃ РЅР°Р±РѕСЂР° СЃРїСЂР°Р№С‚РѕРІ.")]
+        public int fixedIndex = -1;
+
+        [Tooltip("Р•СЃР»Рё fixedIndex < 0 Рё СЃРїРёСЃРѕРє РЅРµ РїСѓСЃС‚ вЂ” СЃР»СѓС‡Р°Р№РЅС‹Р№ РѕРґРёРЅ РёР· СЌС‚РёС… РёРЅРґРµРєСЃРѕРІ.")]
+        public System.Collections.Generic.List<int> pool = new();
+    }
+
+    /// <summary>Р’РµСЂРЅСѓС‚СЊ РєР»РµС‚РєСѓ РїРѕ РєРѕРѕСЂРґРёРЅР°С‚Р°Рј (РёР»Рё null, РµСЃР»Рё РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚).</summary>
     public AdventureCell GetCellAt(int x, int y)
     {
         for (int i = 0; i < cells.Count; i++)
@@ -38,13 +49,13 @@ public class AdventureAsset : ScriptableObject
     }
 
     /// <summary>
-    /// Дополнить список клеток недостающими (по размеру width x height).
-    /// Если fillMissingVisible=true — создаются видимые Walkable-ячейки, иначе — невидимые.
+    /// Р”РѕРїРѕР»РЅРёС‚СЊ СЃРїРёСЃРѕРє РєР»РµС‚РѕРє РЅРµРґРѕСЃС‚Р°СЋС‰РёРјРё (РїРѕ СЂР°Р·РјРµСЂСѓ width x height).
+    /// Р•СЃР»Рё fillMissingVisible=true вЂ” СЃРѕР·РґР°СЋС‚СЃСЏ РІРёРґРёРјС‹Рµ Walkable-СЏС‡РµР№РєРё, РёРЅР°С‡Рµ вЂ” РЅРµРІРёРґРёРјС‹Рµ.
     /// </summary>
     public void EnsureAllCellsPresent(bool fillMissingVisible = true)
     {
         if (cells == null) cells = new List<AdventureCell>();
-        // удалим null-записи на всякий случай
+        // СѓРґР°Р»РёРј null-Р·Р°РїРёСЃРё РЅР° РІСЃСЏРєРёР№ СЃР»СѓС‡Р°Р№
         cells.RemoveAll(c => c == null);
 
         for (int yy = 0; yy < height; yy++)
@@ -65,7 +76,7 @@ public class AdventureAsset : ScriptableObject
     }
 }
 
-/// <summary>Типы гексов на карте приключения (минимальный набор).</summary>
+/// <summary>РўРёРїС‹ РіРµРєСЃРѕРІ РЅР° РєР°СЂС‚Рµ РїСЂРёРєР»СЋС‡РµРЅРёСЏ (РјРёРЅРёРјР°Р»СЊРЅС‹Р№ РЅР°Р±РѕСЂ).</summary>
 public enum HexTerrainType
 {
     Empty,
@@ -79,15 +90,24 @@ public enum HexTerrainType
 }
 
 /// <summary>
-/// Описание одной клетки карты приключения.
-/// Событие назначается ссылкой на EventSO (без overrides).
+/// РћРїРёСЃР°РЅРёРµ РѕРґРЅРѕР№ РєР»РµС‚РєРё РєР°СЂС‚С‹ РїСЂРёРєР»СЋС‡РµРЅРёСЏ.
+/// РЎРѕР±С‹С‚РёРµ РЅР°Р·РЅР°С‡Р°РµС‚СЃСЏ СЃСЃС‹Р»РєРѕР№ РЅР° EventSO (Р±РµР· overrides).
 /// </summary>
 [System.Serializable]
 public class AdventureCell
 {
-    public int x;                      // координата X (как у HexTile.x)
-    public int y;                      // координата Y (как у HexTile.y)
-    public bool visible = true;        // видимый/невидимый. Если false — гекс не показывается и не используется.
+    public int x;                      // РєРѕРѕСЂРґРёРЅР°С‚Р° X (РєР°Рє Сѓ HexTile.x)
+    public int y;                      // РєРѕРѕСЂРґРёРЅР°С‚Р° Y (РєР°Рє Сѓ HexTile.y)
+    public bool visible = true;        // РІРёРґРёРјС‹Р№/РЅРµРІРёРґРёРјС‹Р№. Р•СЃР»Рё false вЂ” РіРµРєСЃ РЅРµ РїРѕРєР°Р·С‹РІР°РµС‚СЃСЏ Рё РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ.
     public HexTerrainType terrain = HexTerrainType.Event;
-    public EventSO eventAsset;         // ссылка на событие (ScriptableObject), может быть null
+    public EventSO eventAsset;         // СЃСЃС‹Р»РєР° РЅР° СЃРѕР±С‹С‚РёРµ (ScriptableObject), РјРѕР¶РµС‚ Р±С‹С‚СЊ null
+    public System.Collections.Generic.List<int> barriers = new System.Collections.Generic.List<int>(); // Р·РЅР°С‡РµРЅРёСЏ 1/3
+
+    public SpriteSheetSet backUnrevealedSet;      // РќР°Р±РѕСЂ РґР»СЏ Р·Р°РєСЂС‹С‚РѕРіРѕ РіРµРєСЃР°
+    public SpriteSheetSet backBlockedSet;         // РќР°Р±РѕСЂ РґР»СЏ Blocked
+    public SpriteSheetSet backRevealedSet;        // РќР°Р±РѕСЂ РґР»СЏ РѕС‚РєСЂС‹С‚С‹С…
+
+    public SpritePickRule backUnrevealed = new();
+    public SpritePickRule backBlocked = new();
+    public SpritePickRule backRevealed = new();
 }

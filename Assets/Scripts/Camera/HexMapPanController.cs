@@ -43,6 +43,10 @@ public class HexMapPanController : MonoBehaviour
             InputSharedState.IsPanning = true;            // Сообщаем остальным системам
             camOrigin = cam.transform.position;           // Запоминаем стартовую позицию камеры
             dragOriginScreen = mouse.position.ReadValue(); // Запоминаем стартовую экранную позицию (px)
+
+            // пока панорамируем — выключить автоследование
+            if (MapCameraFollow.Instance)                   // если в проекте используется MapCameraFollow
+                MapCameraFollow.Instance.followEnabled = false;
         }
 
         // КОНЕЦ ПАНОРАМИРОВАНИЯ (ПКМ отпущен)

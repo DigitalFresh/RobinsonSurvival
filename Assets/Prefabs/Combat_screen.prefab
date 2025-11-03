@@ -1346,7 +1346,6 @@ GameObject:
   - component: {fileID: 5341689709572346715}
   - component: {fileID: 3037046014302298622}
   - component: {fileID: 120398893156574776}
-  - component: {fileID: 300314432268867406}
   m_Layer: 5
   m_Name: Combat_screen
   m_TagString: Untagged
@@ -1401,35 +1400,6 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
---- !u!114 &300314432268867406
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5093714081777885551}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b1f73afe90eb3741b79cce37cfc6ed1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  combatScreen: {fileID: 5093714081777885551}
-  arena: {fileID: 2853598925320707675}
-  fightingBlockPrefab: {fileID: 468433940481131129, guid: 7c03c356f0a978e4baf4e41bed7e8d34, type: 3}
-  btnReturnCards: {fileID: 5718372874961976081}
-  btnDraw2_1: {fileID: 1395740369587889199}
-  btnDraw3_2: {fileID: 7957515598098442178}
-  btnEndTurn: {fileID: 5300799707514082353}
-  btnLeave: {fileID: 6675847800808732120}
-  backgroundWound: {fileID: 3949153105703570220}
-  alertRoot: {fileID: 8865776037883436519}
-  alertIcon: {fileID: 7252022066637747320}
-  playerWoundsText: {fileID: 4467753558747009605}
-  hand: {fileID: 0}
-  deck: {fileID: 0}
-  stats: {fileID: 0}
-  deckHUD: {fileID: 0}
-  blocks: []
 --- !u!1 &6812658855435425588
 GameObject:
   m_ObjectHideFlags: 0

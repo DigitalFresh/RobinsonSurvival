@@ -13,6 +13,13 @@ public class EffectContext
 
     public AbilityDef ability;
 
+    // Когда true — RestoreStatEffectDef НЕ запускает анимацию сам,
+    // а кладёт (stat, amount) сюда, чтобы раннер сыграл их одной пачкой.
+    public bool collectRestoreFx;
+
+    // Буфер для анимаций восстановления (сыграет раннер)
+    public List<(EventSO.PlayerStat stat, int amount)> restoreFxBuffer;
+
     public EffectContext(CardInstance src, AbilityDef ability)       // Конструктор по источнику
     {
         source = src;                            // Сохраняем источник

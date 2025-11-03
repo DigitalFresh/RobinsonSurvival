@@ -14,23 +14,4 @@ public class CardInstance
         def = d;                                 // Сохраняем def
         zone = "Hand";                           // По умолчанию считаем «в руке» (переопределяется снаружи)
     }
-
-    // ВРЕМЕННЫЙ мост: создать CardInstance «на лету» из legacy CardSO (чтобы не ломать текущий код)
-    public static CardInstance FromLegacy(CardSO so)   // CardSO — твой действующий SO
-    {
-        // На время миграции соберём краткий CardDef «в памяти» (без ассета)
-        var tempDef = ScriptableObject.CreateInstance<CardDef>(); // создаём временный ScriptableObject
-        tempDef.id = so.name;                              // ID — имя SO (для простоты)
-        tempDef.displayName = so.displayName;             // Имя — из старого SO
-        tempDef.artwork = so.artwork;                     // Спрайт — из старого SO
-        // Цвет пока не различаем точно — можно по eye>0 считать Blue и т.п.
-        tempDef.color = (so.eye > 0) ? CardDef.CardColor.Blue : CardDef.CardColor.Green;
-        tempDef.hands = so.hands;                         // Ладошки
-        tempDef.fists = so.fists;                         // Кулачки
-        tempDef.eye = so.eye;                           // Глаз
-        tempDef.tags = System.Array.Empty<string>();     // Пока пусто
-        tempDef.abilities = null;                         // Позже прикрутим через редактор
-
-        return new CardInstance(tempDef);                 // Возвращаем рантайм-экземпляр
-    }
 }

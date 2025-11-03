@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9024fd5a62cfb1c4c9374246f03bac4d, type: 3}
   m_Name: Ability_Eye
   m_EditorClassIdentifier: 
-  abilityId: 
+  abilityId: Ability_Eye
   trigger: 0
   costs:
   - {fileID: 11400000, guid: fe6dba8c41d67a9479ecc90ee9625e1c, type: 2}

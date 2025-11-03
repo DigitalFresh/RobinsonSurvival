@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51e3b76e3e3861b46b0dc7effc6e5933, type: 3}
+  m_Name: EvCombat_c004_Enot
+  m_EditorClassIdentifier: Assembly-CSharp::EventSO
+  eventId: EvCombat_c003_Rabbit
+  eventName: "\u0415\u043D\u043E\u0442"
+  description: 
+  icon: {fileID: 2448646332060237208, guid: 39b550bf842961f4cb13a93102719fdc, type: 3}
+  isCombat: 1
+  isChoice: 0
+  isResource: 0
+  mainCostType: 0
+  mainCostAmount: 1
+  additionalCosts: []
+  additionalMandatory: 0
+  penalties: []
+  rewards: []
+  rewardsAreAlternative: 0
+  alternativeRewards: []
+  choices: []
+  isAggressiveCombat: 1
+  combatEnemies:
+  - {fileID: 11400000, guid: 7f23c856a7b63164a8af227bc26780bd, type: 2}
+  previewEnemyIndex: 0
+  defaultHint: 0

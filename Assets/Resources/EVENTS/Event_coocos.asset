@@ -21,7 +21,7 @@ MonoBehaviour:
   isChoice: 0
   isResource: 1
   mainCostType: 0
-  mainCostAmount: 2
+  mainCostAmount: 3
   additionalCosts: []
   additionalMandatory: 0
   penalties: []

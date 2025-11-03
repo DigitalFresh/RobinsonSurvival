@@ -34,15 +34,15 @@ public class HandController : MonoBehaviour
 
     private void Start()                          // Стартовая раздача
     {
-        if (deck != null)                         // Если колода найдена
-        {
-            var cards = deck.DrawMany(initialHand); // Берём initialHand карт
-            foreach (var inst in cards)           // Перебираем инстансы
-                AddCardToHand(inst);              // Спавним в руку
-                //Debug.Log("rect.sizeDelta: " + inst);
-        }
+        //if (deck != null)                         // Если колода найдена
+        //{
+        //    var cards = deck.DrawMany(initialHand); // Берём initialHand карт
+        //    foreach (var inst in cards)           // Перебираем инстансы
+        //        AddCardToHand(inst);              // Спавним в руку
+        //        //Debug.Log("rect.sizeDelta: " + inst);
+        //}
 
-        RaisePilesChanged();                      // Сообщаем подписчикам
+        //RaisePilesChanged();                      // Сообщаем подписчикам
         if (deck != null) deck.OnPilesChanged += RaisePilesChanged; // Слушаем изменения стопок колоды
     }
 
@@ -129,6 +129,42 @@ public class HandController : MonoBehaviour
         var list = deck.DrawMany(toDraw);              // Забираем из draw
         foreach (var inst in list) AddCardToHand(inst);// Спавним в руку
         RaisePilesChanged();                           // Уведомление
+    }
+
+    // УДАЛИТЬ все UI-карты из панели руки (не трогая стопки DeckController).
+    // Это важно при смене приключения: DeckController уже пересобран под пресет,
+    // а текущее содержимое handPanel нужно просто уничтожить.
+    public void ClearHandUIOnly()
+    {
+        if (!handPanel) return;
+
+        // За один проход уничтожаем CardView в руке.
+        var views = handPanel.GetComponentsInChildren<CardView>(includeInactive: true);
+        for (int i = 0; i < views.Length; i++)
+        {
+            var cv = views[i];
+            if (cv) Destroy(cv.gameObject);
+        }
+        RaisePilesChanged(); // уведомим подписчиков о чистой руке
+    }
+
+    // Полный цикл «чистая раздача»: очистить UI-руку и выдать стартовую.
+    // overrideCount — если хочешь переопределить число карт (иначе берётся initialHand).
+    public void RedealInitialHand(int? overrideCount = null)
+    {
+        // 1) Чистим UI руки, не затрагивая стопки (они уже пересобраны пресетом).
+        ClearHandUIOnly();
+
+        // 2) Добираем стартовую руку из текущей drawPile колоды.
+        int count = Mathf.Clamp(overrideCount ?? initialHand, 0, maxHand);
+        if (deck != null && count > 0)
+        {
+            var list = deck.DrawMany(count);   // DeckController отдаёт нужные CardInstance
+            for (int i = 0; i < list.Count; i++)
+                AddCardToHand(list[i]);        // спавним CardView под handPanel
+        }
+
+        RaisePilesChanged();
     }
 
     // Внешняя точка для обновления (дергают DeckController и UI)

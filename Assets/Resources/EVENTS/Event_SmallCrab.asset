@@ -24,7 +24,6 @@ MonoBehaviour:
     \u043F\u0430\u043B\u043E\u043A!\u0411\u043E\u043B\u044C\u0448\u0435 \u043F\u0430\u043B\u043E\u043A!\u0411\u043E\u043B\u044C\u0448\u0435
     \u043F\u0430\u043B\u043E\u043A!"
   icon: {fileID: 1538543466576033935, guid: 9a2f602bb19f75a458a4a357c7381f5f, type: 3}
-  hexType: 1
   isCombat: 0
   isChoice: 0
   isResource: 1

@@ -74,9 +74,12 @@ public class CombatDropZone : MonoBehaviour, IDropHandler
         card.transform.SetParent(transform, false);                    // Родитель = эта зона
         card.rect.localScale = Vector3.one * zoneScale;                // Масштаб 0.7
 
+        //// В боевой зоне кнопка расхода карты недоступна — прячем
+        //card.HideConsumeButtonHard();
+        //Debug.Log("сюда дошли");
+
         if (CombatController.Instance)                           // Если контроллер боя доступен
             CombatController.Instance.NotifyCardEnteredZone(card); // Сообщаем: карта легла в боевую зону
-
 
         // Перестроим Layout немедленно (если используется)
         var rt = transform as RectTransform;                           // RectTransform зоны

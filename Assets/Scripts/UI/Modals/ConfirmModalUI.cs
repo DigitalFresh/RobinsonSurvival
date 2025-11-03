@@ -1,62 +1,122 @@
-using System;                       // Action
+п»їusing System;                       // Action
+using System.Collections.Generic;
+using TMPro;                        // TextMeshProUGUI
 using UnityEngine;                  // MonoBehaviour
 using UnityEngine.UI;               // Button
-using TMPro;                        // TextMeshProUGUI
 
-// Простое модальное окно подтверждения с блокировкой кликов под ним
+// РџСЂРѕСЃС‚РѕРµ РјРѕРґР°Р»СЊРЅРѕРµ РѕРєРЅРѕ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ СЃ Р±Р»РѕРєРёСЂРѕРІРєРѕР№ РєР»РёРєРѕРІ РїРѕРґ РЅРёРј
 public class ConfirmModalUI : MonoBehaviour
 {
-    public static ConfirmModalUI Instance;              // Синглтон
+    [Header("Restore chips (optional)")]
+    [SerializeField] private RectTransform restoreStatBlock;   // Panel/RestoreStatBlock
+    [SerializeField] private Image chipIcon1, chipIcon2, chipIcon3;   // component 1/2/3 Image
+    [SerializeField] private TextMeshProUGUI chipText1, chipText2, chipText3; // component 1/2/3 Text
 
-    public CanvasGroup canvasGroup;                     // Для видимости/блокировки
-    public TextMeshProUGUI messageText;                 // Текст вопроса
-    public Button yesButton;                            // Кнопка "Да"
-    public Button noButton;                             // Кнопка "Нет"
+    public static ConfirmModalUI Instance;              // РЎРёРЅРіР»С‚РѕРЅ
 
-    private Action _onYes;                              // Колбэк по "Да"
-    private Action _onNo;                               // Колбэк по "Нет"
+    public CanvasGroup canvasGroup;                     // Р”Р»СЏ РІРёРґРёРјРѕСЃС‚Рё/Р±Р»РѕРєРёСЂРѕРІРєРё
+    public TextMeshProUGUI messageText;                 // РўРµРєСЃС‚ РІРѕРїСЂРѕСЃР°
+    public Button yesButton;                            // РљРЅРѕРїРєР° "Р”Р°"
+    public Button noButton;                             // РљРЅРѕРїРєР° "РќРµС‚"
 
-    private void Awake()                                // Инициализация
+    private Action _onYes;                              // РљРѕР»Р±СЌРє РїРѕ "Р”Р°"
+    private Action _onNo;                               // РљРѕР»Р±СЌРє РїРѕ "РќРµС‚"
+
+    /// Р”Р°РЅРЅС‹Рµ РѕРґРЅРѕРіРѕ В«С‡РёРїР°В» (РёРєРѕРЅРєР° + В«+РҐВ» + С†РІРµС‚ С‚РµРєСЃС‚Р°)
+    [System.Serializable]
+    public struct RestoreLine
     {
-        Instance = this;                                // Запоминаем синглтон
-        HideImmediate();                                // Прячем модалку на старте
-        if (yesButton != null) yesButton.onClick.AddListener(OnYesClicked); // Подписка "Да"
-        if (noButton != null) noButton.onClick.AddListener(OnNoClicked);   // Подписка "Нет"
+        public Sprite icon;
+        public string label;
+        public Color color;
     }
 
-    public void Show(string message, Action onYes, Action onNo = null) // Показать с текстом и колбэками
+    private void Awake()                                // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ
     {
-        _onYes = onYes;                                  // Сохраняем обработчик "Да"
-        _onNo = onNo;                                   // И "Нет" (может быть null)
-        if (messageText != null) messageText.text = message; // Ставим текст
+        Instance = this;                                // Р—Р°РїРѕРјРёРЅР°РµРј СЃРёРЅРіР»С‚РѕРЅ
+        HideImmediate();                                // РџСЂСЏС‡РµРј РјРѕРґР°Р»РєСѓ РЅР° СЃС‚Р°СЂС‚Рµ
+        if (yesButton != null) yesButton.onClick.AddListener(OnYesClicked); // РџРѕРґРїРёСЃРєР° "Р”Р°"
+        if (noButton != null) noButton.onClick.AddListener(OnNoClicked);   // РџРѕРґРїРёСЃРєР° "РќРµС‚"
+    }
 
-        gameObject.SetActive(true);                      // Включаем объект
+    public void Show(string message, Action onYes, Action onNo = null) // РџРѕРєР°Р·Р°С‚СЊ СЃ С‚РµРєСЃС‚РѕРј Рё РєРѕР»Р±СЌРєР°РјРё
+    {
+        _onYes = onYes;                                  // РЎРѕС…СЂР°РЅСЏРµРј РѕР±СЂР°Р±РѕС‚С‡РёРє "Р”Р°"
+        _onNo = onNo;                                   // Р "РќРµС‚" (РјРѕР¶РµС‚ Р±С‹С‚СЊ null)
+        if (messageText != null) messageText.text = message; // РЎС‚Р°РІРёРј С‚РµРєСЃС‚
+
+        gameObject.SetActive(true);                      // Р’РєР»СЋС‡Р°РµРј РѕР±СЉРµРєС‚
+        if (restoreStatBlock) restoreStatBlock.gameObject.SetActive(false);
         if (canvasGroup != null)
         {
-            canvasGroup.alpha = 1f;                      // Делаем видимым
-            canvasGroup.blocksRaycasts = true;           // Блокируем клики под модалкой
-            canvasGroup.interactable = true;             // Делаем интерактивным
+            canvasGroup.alpha = 1f;                      // Р”РµР»Р°РµРј РІРёРґРёРјС‹Рј
+            canvasGroup.blocksRaycasts = true;           // Р‘Р»РѕРєРёСЂСѓРµРј РєР»РёРєРё РїРѕРґ РјРѕРґР°Р»РєРѕР№
+            canvasGroup.interactable = true;             // Р”РµР»Р°РµРј РёРЅС‚РµСЂР°РєС‚РёРІРЅС‹Рј
 
-            ModalGate.Acquire(this); // <— включаем глобальную блокировку
+            ModalGate.Acquire(this); // <вЂ” РІРєР»СЋС‡Р°РµРј РіР»РѕР±Р°Р»СЊРЅСѓСЋ Р±Р»РѕРєРёСЂРѕРІРєСѓ
         }
     }
 
-    public void Hide()                                    // Спрятать с анимацией/без — тут без
+    ///  В«Р±РѕРіР°С‚С‹Р№В» РїРѕРєР°Р·: Р·Р°РіРѕР»РѕРІРѕРє+С‚РµРєСЃС‚ + РЅР°Р±РѕСЂ С‡РёРїРѕРІ
+    public void ShowRich(string title, string message, List<RestoreLine> lines, System.Action onYes, System.Action onNo = null)
+    {
+        // 1) РџРѕРґРіРѕС‚РѕРІРёРј РѕСЃРЅРѕРІРЅРѕР№ С‚РµРєСЃС‚ (title + \n\n + message)
+        string final = string.IsNullOrEmpty(title) ? (message ?? "") : (title + "\n\n" + (message ?? ""));
+        if (messageText) messageText.text = final;
+
+        // 2) Р’РєР»СЋС‡РёРј/Р·Р°РїРѕР»РЅРёРј Р±Р»РѕРє С‡РёРїРѕРІ
+        var chips = new (Image img, TextMeshProUGUI txt)[] {
+        (chipIcon1, chipText1), (chipIcon2, chipText2), (chipIcon3, chipText3)
+    };
+        int n = (lines != null) ? Mathf.Min(lines.Count, chips.Length) : 0;
+
+        if (restoreStatBlock) restoreStatBlock.gameObject.SetActive(n > 0);
+
+        for (int i = 0; i < chips.Length; i++)
+        {
+            bool on = i < n;
+            if (chips[i].img) chips[i].img.transform.parent.gameObject.SetActive(on); // РІРєР»СЋС‡Р°РµРј component i
+            if (!on) continue;
+
+            var ln = lines[i];
+            if (chips[i].img) chips[i].img.sprite = ln.icon;              // РёРєРѕРЅРєР°
+            if (chips[i].txt)
+            {
+                chips[i].txt.text = ln.label;              // В«+XВ»
+                chips[i].txt.color = ln.color;
+            }           // С†РІРµС‚
+        }
+
+        // 3) РџРѕРєР°Р·С‹РІР°РµРј РѕРєРЅРѕ (РєР°Рє РІ РѕР±С‹С‡РЅРѕРј Show)
+        _onYes = onYes;
+        _onNo = onNo;
+
+        gameObject.SetActive(true);
+        if (canvasGroup != null)
+        {
+            canvasGroup.alpha = 1f;
+            canvasGroup.blocksRaycasts = true;
+            canvasGroup.interactable = true;
+            ModalGate.Acquire(this);
+        }
+    }
+
+    public void Hide()                                    // РЎРїСЂСЏС‚Р°С‚СЊ СЃ Р°РЅРёРјР°С†РёРµР№/Р±РµР· вЂ” С‚СѓС‚ Р±РµР·
     {
         if (canvasGroup != null)
         {
-            canvasGroup.alpha = 0f;                       // Невидимо
-            canvasGroup.blocksRaycasts = false;           // Не блокирует
-            canvasGroup.interactable = false;             // Не интерактивно
+            canvasGroup.alpha = 0f;                       // РќРµРІРёРґРёРјРѕ
+            canvasGroup.blocksRaycasts = false;           // РќРµ Р±Р»РѕРєРёСЂСѓРµС‚
+            canvasGroup.interactable = false;             // РќРµ РёРЅС‚РµСЂР°РєС‚РёРІРЅРѕ
         }
-        gameObject.SetActive(false);                      // Выключаем объект
-        _onYes = null;                                    // Чистим колбэки
+        gameObject.SetActive(false);                      // Р’С‹РєР»СЋС‡Р°РµРј РѕР±СЉРµРєС‚
+        _onYes = null;                                    // Р§РёСЃС‚РёРј РєРѕР»Р±СЌРєРё
         _onNo = null;
 
-        ModalGate.Release(this); // <— снимаем глобальную блокировку
+        ModalGate.Release(this); // <вЂ” СЃРЅРёРјР°РµРј РіР»РѕР±Р°Р»СЊРЅСѓСЋ Р±Р»РѕРєРёСЂРѕРІРєСѓ
     }
 
-    private void HideImmediate()                          // Спрятать в Awake
+    private void HideImmediate()                          // РЎРїСЂСЏС‚Р°С‚СЊ РІ Awake
     {
         if (canvasGroup != null)
         {
@@ -67,21 +127,21 @@ public class ConfirmModalUI : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    private void OnYesClicked()                           // Нажато "Да"
+    private void OnYesClicked()                           // РќР°Р¶Р°С‚Рѕ "Р”Р°"
     {
-        var cb = _onYes;                                  // Сохраняем ссылку
-        Hide();                                           // Прячем окно
-        cb?.Invoke();                                     // Вызываем обработчик
+        var cb = _onYes;                                  // РЎРѕС…СЂР°РЅСЏРµРј СЃСЃС‹Р»РєСѓ
+        Hide();                                           // РџСЂСЏС‡РµРј РѕРєРЅРѕ
+        cb?.Invoke();                                     // Р’С‹Р·С‹РІР°РµРј РѕР±СЂР°Р±РѕС‚С‡РёРє
     }
 
-    private void OnNoClicked()                            // Нажато "Нет"
+    private void OnNoClicked()                            // РќР°Р¶Р°С‚Рѕ "РќРµС‚"
     {
-        var cb = _onNo;                                   // Сохраняем ссылку
-        Hide();                                           // Прячем окно
-        cb?.Invoke();                                     // Вызываем обработчик (если есть)
+        var cb = _onNo;                                   // РЎРѕС…СЂР°РЅСЏРµРј СЃСЃС‹Р»РєСѓ
+        Hide();                                           // РџСЂСЏС‡РµРј РѕРєРЅРѕ
+        cb?.Invoke();                                     // Р’С‹Р·С‹РІР°РµРј РѕР±СЂР°Р±РѕС‚С‡РёРє (РµСЃР»Рё РµСЃС‚СЊ)
     }
 
-    // Вспомогательное: быстро проверить, открыто ли окно
+    // Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅРѕРµ: Р±С‹СЃС‚СЂРѕ РїСЂРѕРІРµСЂРёС‚СЊ, РѕС‚РєСЂС‹С‚Рѕ Р»Рё РѕРєРЅРѕ
     public static bool IsOpen => Instance != null && Instance.canvasGroup != null
                                && Instance.canvasGroup.blocksRaycasts
                                && Instance.canvasGroup.alpha > 0.9f;

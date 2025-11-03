@@ -20,8 +20,6 @@ public class HexGridGenerator : MonoBehaviour
         allEvents = provider != null ? provider.LoadAllEvents() : new EventSO[0]; // Загружаем все EventSO
 
       GenerateGrid(); // Генерируем сетку при старте
-        // После генерации можно поставить игрока:
-       // HexMapController.Instance?.PlacePlayerAtStartAuto(gridWidth, gridHeight); // Автостарт фишки игрока
 
         // Получаем ссылку на фишку игрока из контроллера карты
         var pawn = HexMapController.Instance?.playerPawn;           // Берём фишку игрока (если есть)
@@ -33,16 +31,6 @@ public class HexGridGenerator : MonoBehaviour
         }
 
     }
-
-    //private void LoadEvents()           // Загрузка ассетов событий из Resources
-    //{
-    //    allEvents = Resources.LoadAll<EventSO>("Events"); // Загружаем все EventSO из Assets/Resources/Events
-    //    if (allEvents == null || allEvents.Length == 0)   // Если ничего не нашли
-    //    {
-    //        Debug.LogWarning("Не найдено ни одного EventSO в Resources/Events"); // Предупреждение в консоль
-    //    }
-    //}
-
     public void GenerateGrid()
     {
         // 1️ Удаляем предыдущие гексы, если они уже есть в объекте
@@ -86,52 +74,11 @@ public class HexGridGenerator : MonoBehaviour
 
                 tile.Init(x, y);                  // Передаём координаты гексу (и обновляем его имя внутри, если нужно)
 
-                //if (allEvents != null && allEvents.Length > 0)                  // Если есть события
-                //{
-                //    var randomEvent = allEvents[Random.Range(0, allEvents.Length)]; // Случайно выбираем одно
-                //    tile.BindEvent(randomEvent);                                // Привязываем событие к тайлу
-                //}
-                //else
-                //{
-                //    tile.SetType(HexType.Empty);                                // Иначе — пустой тайл
-                //}
-
-                //// --- Проходимость и стартовое открытие (для прототипа) ---
-                //tile.SetPassable(tile.type != HexType.Blocked);        // Заблокированные делаем непроходимыми
-
                 HexMapController.Instance.RegisterHex(tile);
             }
         }
 
     }
 
-
-
-    //void FrameCameraToGrid(Camera cam, Transform gridRoot, float padding = 1.05f)
-    //{
-    //    if (cam == null || gridRoot == null) return; // Защита
-
-    //    // Считаем Bounds по всем дочерним объектам (гексам)
-    //    var renderers = gridRoot.GetComponentsInChildren<Renderer>(); // Подойдёт SpriteRenderer
-    //    if (renderers.Length == 0) return; // Нечего фреймить
-
-    //    Bounds b = renderers[0].bounds; // Начальные границы
-    //    for (int i = 1; i < renderers.Length; i++)
-    //        b.Encapsulate(renderers[i].bounds); // Расширяем границы
-
-    //    // Центруем камеру
-    //    Vector3 center = b.center;
-    //    cam.transform.position = new Vector3(center.x, center.y, cam.transform.position.z);
-
-    //    // Подгоняем orthographicSize, чтобы вся сетка влезла по высоте ВНУТРИ viewport камеры
-    //    float halfHeight = b.extents.y * padding; // половина высоты
-    //    float halfWidth = b.extents.x * padding; // половина ширины
-    //    float aspect = cam.aspect * cam.rect.width / cam.rect.height; // учтём Viewport Rect, если не на весь экран
-
-    //    float sizeByHeight = halfHeight;           // высота в world units
-    //    float sizeByWidth = halfWidth / aspect;   // конвертируем ширину в world units по аспекту
-
-    //    cam.orthographicSize = Mathf.Max(sizeByHeight, sizeByWidth); // берём большее — чтобы влезло и по ширине, и по высоте
-    //}
 
 }

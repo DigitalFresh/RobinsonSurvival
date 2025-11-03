@@ -1,11 +1,9 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Генерирует гекс-сетку по AdventureAsset, регистрирует все тайлы в HexMapController,
-/// биндит события (через HexTile.BindEvent), затем ставит игрока на Start и открывает соседей.
-/// Работает без HexGridGenerator — он больше не нужен на рантайме.
-/// </summary>
+// Генерирует гекс-сетку по AdventureAsset, регистрирует все тайлы в HexMapController,
+// биндит события (через HexTile.BindEvent), затем ставит игрока на Start и открывает соседей.
+// Работает без HexGridGenerator — он больше не нужен на рантайме.
 public class AdventureBuilder : MonoBehaviour
 {
     [Header("Source")]
@@ -23,6 +21,9 @@ public class AdventureBuilder : MonoBehaviour
 
     [SerializeField] private HexMapController _map;                         // кэш контроллера карты
     private Dictionary<(int x, int y), HexTile> _tiles;    // реестр сгенерированных тайлов
+
+    [Header("Backdrop Catalog (NEW)")]
+    public SpriteSheetCatalog sheetCatalog;                 // Глобальное хранилище наборов + дефолты
 
     private void Awake()
     {
@@ -100,6 +101,9 @@ public class AdventureBuilder : MonoBehaviour
                 continue;
             }
 
+            // Назначаем барьеры из ассета (HexTile сам обновит бейдж при активном объекте)
+            tile.SetBarriers(cell.barriers);
+
             // Видимость: невидимые гексы выключаем целиком
             tile.gameObject.SetActive(cell.visible);
             if (!cell.visible) continue;
@@ -113,11 +117,14 @@ public class AdventureBuilder : MonoBehaviour
                 case HexTerrainType.Event: newType = HexType.Event; break;
                 case HexTerrainType.Blocked: newType = HexType.Blocked; break;
                 case HexTerrainType.Start: newType = HexType.Empty; startTile = tile; break;
-                case HexTerrainType.Exit: newType = cell.eventAsset ? HexType.Event : HexType.Empty; break;
+                case HexTerrainType.Exit: newType = HexType.Exit; break;
             }
 
             tile.SetType(newType);
             tile.SetPassable(newType != HexType.Blocked);
+
+            // cell — это AdventureCell, tile — HexTile на сцене
+            tile.ApplyBackdropPicks(cell.backUnrevealed, cell.backBlocked, cell.backRevealed);
 
             // Событие: биндим ТОЛЬКО через HexTile.BindEvent — так гарантирован бейдж (badgeAnchor + HexEventBadgeUI)
             // (Если тип Blocked/Empty — биндим null, чтобы спрятать бейдж)
@@ -165,4 +172,62 @@ public class AdventureBuilder : MonoBehaviour
             else DestroyImmediate(child.gameObject);
         }
     }
+
+    private void BuildCell(AdventureCell cell, HexTile tile)
+    {
+        // 1) Ставим тип/событие/барьеры — как у вас
+
+        // 2) РЕЗОЛВИМ наборы (если в клетке нет — используем дефолт из каталога)
+        var setUnrev = cell.backUnrevealedSet ? cell.backUnrevealedSet : sheetCatalog ? sheetCatalog.defaultUnrevealed : null;
+        var setBlocked = cell.backBlockedSet ? cell.backBlockedSet : sheetCatalog ? sheetCatalog.defaultBlocked : null;
+        var setRev = cell.backRevealedSet ? cell.backRevealedSet : sheetCatalog ? sheetCatalog.defaultRevealed : null;
+
+        // 3) Выбираем один кадр из набора по правилу (или берём null, если ничего не нашлось)
+        Sprite pickUnrev = PickSprite(setUnrev, cell.backUnrevealed, cell.x, cell.y, seedOffset: 17);
+        Sprite pickBlocked = PickSprite(setBlocked, cell.backBlocked, cell.x, cell.y, seedOffset: 31);
+        Sprite pickRev = PickSprite(setRev, cell.backRevealed, cell.x, cell.y, seedOffset: 47);
+
+        // 4) Отдаём выбранные кадры тайлу (он сам покажет нужный в зависимости от state)
+        tile.ApplyChosenBackdropSprites(pickUnrev, pickBlocked, pickRev);
+    }
+
+    // Выбор кадра из набора по SpritePickRule (fixedIndex / pool), детерминированно по координатам
+    private static Sprite PickSprite(SpriteSheetSet set, AdventureAsset.SpritePickRule rule, int x, int y, int seedOffset)
+    {
+        if (!set || set.sprites == null || set.sprites.Count == 0) return null; // Нет набора — возвращаем null
+
+        int idx = -1;                                              // Начальный «не выбран»
+        if (rule != null)
+        {
+            if (rule.fixedIndex >= 0)                              // Если указан фикс — берём его
+            {
+                idx = Mathf.Clamp(rule.fixedIndex, 0, set.sprites.Count - 1);
+            }
+            else if (rule.pool != null && rule.pool.Count > 0)     // Иначе если есть пул — стабильно выбираем из него
+            {
+                var valid = new List<int>();                       // Сюда соберём валидные индексы
+                for (int i = 0; i < rule.pool.Count; i++)          // Проходим по пулу
+                {
+                    int pi = rule.pool[i];                         // Кандидат
+                    if (pi >= 0 && pi < set.sprites.Count)         // Если в пределах набора
+                        valid.Add(pi);                             // Добавляем в валидные
+                }
+                if (valid.Count > 0)                               // Если есть из чего выбирать
+                {
+                    unchecked                                         // Делаем детерминированный «рандом» от координат
+                    {
+                        int seed = x * 73856093 ^ y * 19349663 ^ seedOffset;
+                        var rnd = new System.Random(seed);
+                        idx = valid[rnd.Next(valid.Count)];           // Выбираем один индекс из пула
+                    }
+                }
+            }
+        }
+
+        if (idx < 0) idx = 0;                                      // Если ничего не выбрали — берём 0
+        return set.sprites[Mathf.Clamp(idx, 0, set.sprites.Count - 1)]; // Возвращаем спрайт по индексу
+    }
+
+
+    public void SetAdventure(AdventureAsset a) { this.adventure = a; }
 }
