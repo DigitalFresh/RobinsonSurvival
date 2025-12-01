@@ -27,7 +27,8 @@ public class HandPanelDropZone : MonoBehaviour, IDropHandler
             if (zone.currentHands < 0) zone.currentHands = 0;
             zone.UpdateRequirementText();
             card.ownerZone = null;                              // Больше не принадлежит зоне
-            EventWindowUI.Instance?.UpdateConfirmInteractable();// Кнопка «Разыграть» может измениться
+            //EventWindowUI.Instance?.UpdateConfirmInteractable();// Кнопка «Разыграть» может измениться
+            //ChooseEventWindowUI.Instance?.UpdateConfirmInteractable(); // Обновляем доступность кнопки «Разыграть»
         }
 
         var combatController = FindFirstObjectByType<CombatController>(FindObjectsInactive.Include);
