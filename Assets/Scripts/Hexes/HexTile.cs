@@ -224,6 +224,8 @@ public class HexTile : MonoBehaviour // Скрипт логики одного �
         // при любом пересчёте визуала рамку снимаем (покажется заново при ховере)
         if (isSelected) isSelected.SetActive(false);
 
+        UpdateBackdropVisual();
+
     }
 
 
@@ -520,6 +522,8 @@ public class HexTile : MonoBehaviour // Скрипт логики одного �
             s = _chosenRevealed;
 
         backdropRenderer.sprite = s;                                 // Ставим выбранный кадр
+
+        SetSpriteLikeHex(backdropRenderer, s, sortingOffset: +1, inset: 1f);
     }
 
 }
