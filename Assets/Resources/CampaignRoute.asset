@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stages:
   - id: ADV1
-    adventure: {fileID: 11400000, guid: 429b44a8ade0cfd4ab1344e9d1ee6612, type: 2}
+    adventure: {fileID: 11400000, guid: 2303bb2e6f604ed418898441818d154f, type: 2}
     exitModalKey: exit
     deckPreset: {fileID: 11400000, guid: 9e479de450176664d81bd9b2d9671b9f, type: 2}
   - id: ADV2
-    adventure: {fileID: 11400000, guid: a51ae2535979c9e4e8ce5ec29893fa38, type: 2}
+    adventure: {fileID: 11400000, guid: 2303bb2e6f604ed418898441818d154f, type: 2}
     exitModalKey: exit
     deckPreset: {fileID: 11400000, guid: 9e479de450176664d81bd9b2d9671b9f, type: 2}
