@@ -99,6 +99,7 @@ public class AdventureCell
     public int x;                      // координата X (как у HexTile.x)
     public int y;                      // координата Y (как у HexTile.y)
     public bool visible = true;        // видимый/невидимый. Если false — гекс не показывается и не используется.
+    public bool revealed = false;
     public HexTerrainType terrain = HexTerrainType.Event;
     public EventSO eventAsset;         // ссылка на событие (ScriptableObject), может быть null
     public System.Collections.Generic.List<int> barriers = new System.Collections.Generic.List<int>(); // значения 1/3
