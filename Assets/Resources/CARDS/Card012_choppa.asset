@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6084b5c5e62d3c4a96be8a2653a2161, type: 3}
+  m_Name: Card012_choppa
+  m_EditorClassIdentifier: Assembly-CSharp::CardDef
+  id: Card012_choppa
+  displayName: "\u0414\u0443\u0431\u0438\u043D\u043A\u0430"
+  artwork: {fileID: -6556995204714050264, guid: 21f3918be7ea7504b9dab40ef91aebe3, type: 3}
+  color: 1
+  hands: 1
+  fists: 2
+  eye: 0
+  brain: 0
+  power: 1
+  speed: 0
+  effects: []
+  tags: []
+  abilities: []
