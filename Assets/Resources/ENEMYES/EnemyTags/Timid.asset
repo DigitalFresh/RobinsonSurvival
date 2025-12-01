@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Timid
   m_EditorClassIdentifier: Assembly-CSharp::TagDef
   id: Timid
-  uiIcon: {fileID: 0}
+  uiIcon: {fileID: 2365562914299140298, guid: c79ed8a444ab0ab46ae82704e75b9ea4, type: 3}
   description: "\u041F\u0443\u0433\u043B\u0438\u0432\u043E\u0435 - \u043F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A
     \u0443\u0431\u0435\u0436\u0438\u0442 \u0441 \u043F\u043E\u043B\u044F, \u0435\u0441\u043B\u0438
     \u043D\u0430 \u043D\u0435\u0433\u043E \u0441\u0440\u0430\u0437\u0443 \u043D\u0435
