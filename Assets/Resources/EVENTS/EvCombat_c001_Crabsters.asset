@@ -15,7 +15,7 @@ MonoBehaviour:
   eventId: EvCombat_c001_Crabsters
   eventName: "\u0411\u0438\u0442\u0432\u0430 \u0441 \u043A\u0440\u0430\u0431\u0441\u0442\u0435\u0440\u0430\u043C\u0438"
   description: 
-  icon: {fileID: 2940359857572100557, guid: 664c16a5dba55b248a4644c16db2e618, type: 3}
+  icon: {fileID: 5330814488029346338, guid: 1ce7f13eae9a11748aa0acbaaf1aa313, type: 3}
   isCombat: 1
   isChoice: 0
   isResource: 0
@@ -32,5 +32,6 @@ MonoBehaviour:
   combatEnemies:
   - {fileID: 11400000, guid: 25b47f006305702409d97bbff5a07f04, type: 2}
   - {fileID: 11400000, guid: 25b47f006305702409d97bbff5a07f04, type: 2}
+  - {fileID: 11400000, guid: da6fcaa7244892446b4cbfa81b3183ab, type: 2}
   previewEnemyIndex: 1
   defaultHint: 0
