@@ -48,8 +48,8 @@ public class FightingBlockUI : MonoBehaviour
 
     public void RecountSums()                              // Пересчитать суммы кулачков по зонам
     {
-        cachedAttack = SumFistsIn(zoneAttack);             // Посчитать кулачки в атаке
-        cachedDefense = SumFistsIn(zoneDefense);           // Посчитать кулачки в защите
+        cachedAttack = SumFistsIn(zoneAttack, enemy);             // Посчитать кулачки в атаке
+        cachedDefense = SumFistsOut(zoneDefense);           // Посчитать кулачки в защите
         // Обновить текстовые поля
         if (txtFist) txtFist.text = cachedAttack.ToString();     // Печатаем атаку
         if (txtShields) txtShields.text = cachedDefense.ToString(); // Печатаем щиты
@@ -68,7 +68,7 @@ public class FightingBlockUI : MonoBehaviour
         if (enemyView) enemyView.PreviewIncomingDamage(damageToEnemy);                      // Запускаем/обновляем мигание
     }
 
-    private int SumFistsIn(Transform container)            // Сумма CardDef.fists у карт в контейнере
+    private int SumFistsOut(Transform container)            // Сумма CardDef.fists у карт в контейнере
     {
         if (!container) return 0;                          // Нет контейнера — 0
         int sum = 0;                                       // Аккумулятор
@@ -80,6 +80,54 @@ public class FightingBlockUI : MonoBehaviour
         }
         return sum;                                       // Возвращаем результат
     }
+
+    private int SumFistsIn(Transform container, EnemySO enemy)            // Сумма CardDef.fists у карт в контейнере
+    {
+        if (!container) return 0;                          // Нет контейнера — 0
+        int sum = 0;                                       // Аккумулятор
+        var cards = container.GetComponentsInChildren<CardView>(); // Берём все CardView в зоне
+        bool enemyFlying = EnemyHasTag(enemy, "flying");
+        bool hasRanged = AnyRangedInAttack();
+        for (int i = 0; i < cards.Length; i++)
+        {
+            var cv = cards[i];
+            if (!cv || cv.data == null) continue;
+
+            int fists = Mathf.Max(0, cv.data.fists); // базовая «сила» карты (кулачки)
+            if (enemyFlying && !hasRanged && cv.data.color == CardDef.CardColor.Red)
+            {
+                fists = Mathf.Max(0, fists - 1);     // штраф −1 для КРАСНОЙ карты
+            }
+            sum += fists;
+        }
+        return sum;                                       // Возвращаем результат
+    }
+
+
+    // === РАСЧЁТ АТАКИ ПО ВРАГУ С УЧЁТОМ «FLYING» ===
+    // Суммируем вклад каждой карты; если enemy «flying» И в атаке нет ranged,
+    // то у КАЖДОЙ КРАСНОЙ карты отнимаем 1 (не ниже нуля).
+    //private int ComputeAttackAgainst(EnemySO enemy)
+    //{
+    //    var cards = CardsUnder(zoneAttack);
+    //    bool enemyFlying = EnemyHasTag(enemy, "flying");
+    //    bool hasRanged = AnyRangedInAttack();
+
+    //    int sum = 0;
+    //    for (int i = 0; i < cards.Length; i++)
+    //    {
+    //        var cv = cards[i];
+    //        if (!cv || cv.data == null) continue;
+
+    //        int fists = Mathf.Max(0, cv.data.fists); // базовая «сила» карты (кулачки)
+    //        if (enemyFlying && !hasRanged && cv.data.color == CardDef.CardColor.Red)
+    //        {
+    //            fists = Mathf.Max(0, fists - 1);     // штраф −1 для КРАСНОЙ карты
+    //        }
+    //        sum += fists;
+    //    }
+    //    return sum;
+    //}
 
     public void OnCardRemovedFromZone(CardView card, CombatZoneType from) // Сообщение от соседней зоны при переносе
     {
@@ -199,10 +247,36 @@ public class FightingBlockUI : MonoBehaviour
         return container ? container.GetComponentsInChildren<CardView>(false) : System.Array.Empty<CardView>();
     }
 
+    //  есть ли у врага нужный тег? ===
+    private static bool EnemyHasTag(EnemySO e, string tagId)
+    {
+        if (e == null || e.tags == null || string.IsNullOrEmpty(tagId)) return false;
+        for (int i = 0; i < e.tags.Count; i++)
+        {
+            var t = e.tags[i];
+            if (t && !string.IsNullOrEmpty(t.id) &&
+                string.Equals(t.id, tagId, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
     // У карты есть эффект Ranged attack?
     private static bool HasRangedTag(CardView cv) =>
         cv != null && cv.data != null && cv.data.tags != null &&
         cv.data.tags.Exists(t => t && t.id == "ranged");
+
+    // Быстро проверяем «есть ли хотя бы одна дальняя карта в атаке»
+    private bool AnyRangedInAttack()
+    {
+        var arr = CardsUnder(zoneAttack);
+        for (int i = 0; i < arr.Length; i++)
+        {
+            var cv = arr[i];
+            if (cv && HasRangedTag(cv)) return true;
+        }
+        return false;
+    }
 
 
     // True, если в зоне атаки есть хотя бы одна карта И все карты там — с эффектом Ranged.
