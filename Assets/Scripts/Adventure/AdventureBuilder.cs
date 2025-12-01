@@ -25,6 +25,7 @@ public class AdventureBuilder : MonoBehaviour
     [Header("Backdrop Catalog (NEW)")]
     public SpriteSheetCatalog sheetCatalog;                 // Глобальное хранилище наборов + дефолты
 
+
     private void Awake()
     {
         // Подстрахуемся: если gridRoot не задан — используем собственный трансформ
@@ -122,9 +123,13 @@ public class AdventureBuilder : MonoBehaviour
 
             tile.SetType(newType);
             tile.SetPassable(newType != HexType.Blocked);
+            if (cell.revealed) tile.Reveal();
 
-            // cell — это AdventureCell, tile — HexTile на сцене
-            tile.ApplyBackdropPicks(cell.backUnrevealed, cell.backBlocked, cell.backRevealed);
+            //// cell — это AdventureCell, tile — HexTile на сцене
+            //tile.ApplyBackdropPicks(cell.backUnrevealed, cell.backBlocked, cell.backRevealed);
+
+            // применяем выбор из SpriteSheetSet/каталога:
+            BuildCell(cell, tile);
 
             // Событие: биндим ТОЛЬКО через HexTile.BindEvent — так гарантирован бейдж (badgeAnchor + HexEventBadgeUI)
             // (Если тип Blocked/Empty — биндим null, чтобы спрятать бейдж)
