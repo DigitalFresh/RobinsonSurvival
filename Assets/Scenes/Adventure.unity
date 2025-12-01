@@ -5218,6 +5218,7 @@ MonoBehaviour:
   startX: 0
   startY: 0
   combatController: {fileID: 0}
+  suppressMapCleanupOnce: 0
 --- !u!4 &993317940
 Transform:
   m_ObjectHideFlags: 0
@@ -6675,6 +6676,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7569617726216609664, guid: f2b0ce0977833554e951454d839cd565, type: 3}
+      propertyPath: m_Value
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7983291515654168000, guid: f2b0ce0977833554e951454d839cd565, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -7272,6 +7277,8 @@ MonoBehaviour:
   info: {fileID: 801665543}
   freeReward: {fileID: 413605355}
   small: {fileID: 1029165391}
+  altRewardChoice: {fileID: 5573493938293869087, guid: 066637262884c8f478f7255f6638242e, type: 3}
+  modalRoot: {fileID: 1124271573}
 --- !u!4 &1498545385
 Transform:
   m_ObjectHideFlags: 0
@@ -8781,7 +8788,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9e0e8151d914cc74cbcdb6e89b78973f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  adventure: {fileID: 11400000, guid: 429b44a8ade0cfd4ab1344e9d1ee6612, type: 2}
+  adventure: {fileID: 11400000, guid: 2303bb2e6f604ed418898441818d154f, type: 2}
   hexPrefab: {fileID: 4023901420636834558, guid: 45c15d0adfb2ce54b9d160453527eaff, type: 3}
   gridRoot: {fileID: 1698651967}
   hexWidth: 1
@@ -8789,6 +8796,7 @@ MonoBehaviour:
   buildOnStart: 1
   hideUnspecifiedTiles: 1
   _map: {fileID: 0}
+  sheetCatalog: {fileID: 0}
 --- !u!1 &1721577035
 GameObject:
   m_ObjectHideFlags: 0
@@ -10200,7 +10208,7 @@ MonoBehaviour:
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 0
   m_ChildControlHeight: 0
-  m_ChildScaleWidth: 0
+  m_ChildScaleWidth: 1
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
 --- !u!222 &1990000637
