@@ -29,6 +29,10 @@ public class EnemyView : MonoBehaviour
     public EnemySO data;                               // Ассет врага
     public int currentHP;                              // Текущее ХП в бою
 
+    [Header("Tags (icons)")]
+    public Transform tagsIconContainer; // Контейнер для иконок тегов (например, "Tags")
+    public Image tagIconPrefab;         // Префаб маленькой иконки (Image) для одного тега
+
     private void Awake()                                            // На инициализации компонента
     {
         EnsureLocalRefs();                                          // Приводим ссылки к сценовым
@@ -52,6 +56,7 @@ public class EnemyView : MonoBehaviour
         // Награды-ресурсы
         RebuildLoot();                                 // Спавним res_1 для каждого Entry
         // Traits
+        RebuildTagIcons();
         if (traitsButton)                              // Кнопка видна только если есть свойства
             traitsButton.gameObject.SetActive(data != null && data.traits != null && data.traits.Count > 0);
         if (traitsPanel) traitsPanel.SetActive(false); // Панель свёрнута
@@ -306,6 +311,31 @@ public class EnemyView : MonoBehaviour
             }
             grow = !grow;                                              // Смена фазы
             yield return wait;                                         // Пауза до следующей фазы
+        }
+    }
+
+    private void RebuildTagIcons()
+    {
+        if (!tagsIconContainer || !tagIconPrefab) return;
+        // очистка
+        for (int i = tagsIconContainer.childCount - 1; i >= 0; i--)
+            Destroy(tagsIconContainer.GetChild(i).gameObject);
+
+        if (data == null || data.tags == null) return;
+
+        for (int i = 0; i < data.tags.Count; i++)
+        {
+            var tag = data.tags[i];
+            if (!tag || !tag.uiIcon) continue;
+            var img = Instantiate(tagIconPrefab, tagsIconContainer);
+            img.sprite = tag.uiIcon;      // собственно иконка тега
+            var tt = img.GetComponent<TooltipTrigger>();
+            if (!tt) tt = img.gameObject.AddComponent<TooltipTrigger>(); // повесим компонент, если его нет
+            tt.tagDef = tag;                 // текст возьмём из tag.description
+            tt.customText = null;            // лишний текст не нужен — приоритет у tagDef.description
+            tt.delay = 0.45f;                // (по желанию) задержка перед показом
+            img.preserveAspect = true;
+            img.rectTransform.localScale = Vector3.one;
         }
     }
 
