@@ -73,6 +73,7 @@ public class EventWindowDropZone : MonoBehaviour, IDropHandler, IPointerEnterHan
 
         RecalcTotals();                            // Пересчитываем суммы по параметрам
         EventWindowUI.Get()?.UpdateConfirmInteractable(); // Обновляем доступность кнопки «Разыграть»
+        ChooseEventWindowUI.Get()?.UpdateConfirmInteractable(); // Обновляем доступность кнопки «Разыграть»
         OnZoneChanged?.Invoke();                   // Уведомляем подписчиков
     }
 
@@ -86,6 +87,7 @@ public class EventWindowDropZone : MonoBehaviour, IDropHandler, IPointerEnterHan
             //if (currentHands < 0) currentHands = 0;
             UpdateRequirementText();                              // обновить «Нужно ✋ ...»
             EventWindowUI.Instance?.UpdateConfirmInteractable();  // пересчитать кнопку «Разыграть»
+            ChooseEventWindowUI.Instance?.UpdateConfirmInteractable(); // Обновляем доступность кнопки «Разыграть»
         }
     }
 
