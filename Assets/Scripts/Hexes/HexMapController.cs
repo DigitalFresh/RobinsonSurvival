@@ -27,10 +27,13 @@ public class HexMapController : MonoBehaviour
 
     // Сюда складываем ближайший агрессивный бой, найденный при раскрытии соседей
     private HexTile _pendingAggressiveNear;
+    private System.Action<bool> _adHocCombatCallback;   // единоразовый колбэк «бой завершён»
 
     // --- PATHFINDING / MOVE STATE ---
     private bool _pathMoveInProgress = false;           // Идёт ли сейчас пошаговое перемещение
     private HexTile _lastHintTile;                      // Кому показывали подсказку в прошлый кадр
+
+    [HideInInspector] public bool suppressMapCleanupOnce = false;
 
     private void Awake() // Вызывается при создании объекта в сцене
     {
@@ -159,6 +162,22 @@ public class HexMapController : MonoBehaviour
             }
             return;                                                      // Ждём решения игрока
         }
+    }
+        public void StartAdHocCombat(HexTile tile, List<EnemySO> enemies, System.Action<bool> onEnd)
+    {
+        // Защита от повторного старта/плохих аргументов
+        if (_combatRunning) { onEnd?.Invoke(false); return; }
+        if (!tile || enemies == null || enemies.Count == 0) { onEnd?.Invoke(true); return; }
+
+        var cc = GetCombatController();
+        if (!cc) { onEnd?.Invoke(true); return; }
+
+        _combatRunning = true;
+        _pendingCombatTile = tile;          // привязка к тайлу — так же, как в штатном запуске боя
+        _adHocCombatCallback = onEnd;       // запомним, кого дернуть по завершению
+
+        // Запускаем GUI боя (CombatController уже умеет открывать экран и вести раунды)
+        cc.StartCombatAtTile(tile, enemies);
     }
 
     private System.Collections.IEnumerator ExecutePathMoveWithCost(List<HexTile> path)
@@ -384,7 +403,7 @@ public class HexMapController : MonoBehaviour
         var t = _pendingCombatTile;                                      // Короткая ссылка
         _pendingCombatTile = null;                                       // Чистим поле
 
-        if (playerWon)                                                   // Обрабатываем только победу
+        if (!suppressMapCleanupOnce && playerWon)                                                   // Обрабатываем только победу
         {
             // По правилам: событие удаляется, гекс остаётся открытым, игрок перемещается на этот гекс.
             t.SetType(HexType.Empty);                                    // Тип — пустой
@@ -399,6 +418,11 @@ public class HexMapController : MonoBehaviour
         {
             // Здесь можно обработать поражение/отмену при необходимости (ничего не делаем по умолчанию)
         }
+
+        suppressMapCleanupOnce = false;
+        var cb = _adHocCombatCallback;
+        _adHocCombatCallback = null;
+        cb?.Invoke(playerWon);
     }
 
     // Явно: «проходим для пути» значит открыт, пуст, проходим
