@@ -12,6 +12,8 @@ public class ModalManager : MonoBehaviour
     [SerializeField] private InfoModalUI info;
     [SerializeField] private FreeRewardModalUI freeReward;
     [SerializeField] private SmallModalUI small;
+    [SerializeField] private AltRewardChoiceModalUI altRewardChoice;
+    [SerializeField] private Transform modalRoot;
 
     private void Awake()
     {
@@ -21,6 +23,8 @@ public class ModalManager : MonoBehaviour
         if (!confirm) confirm = FindFirstObjectByType<ConfirmModalUI>(FindObjectsInactive.Include);
         if (!info) info = FindFirstObjectByType<InfoModalUI>(FindObjectsInactive.Include);
         if (!freeReward) freeReward = FindFirstObjectByType<FreeRewardModalUI>(FindObjectsInactive.Include);
+        if (!small) small = FindFirstObjectByType<SmallModalUI>(FindObjectsInactive.Include);
+        //if (!altRewardChoice) altRewardChoice = FindFirstObjectByType<AltRewardChoiceModalUI>(FindObjectsInactive.Include);
     }
 
     // ЕДИНАЯ ТОЧКА ВХОДА
@@ -34,6 +38,7 @@ public class ModalManager : MonoBehaviour
             case ModalKind.Info: ShowInfo(req, onClose); break;
             case ModalKind.FreeReward: ShowFreeReward(req, onClose); break;
             case ModalKind.Small: ShowSmall(req, onClose); break;
+            case ModalKind.AltRewardChoice: ShowAltRewardChoice(req, onClose); break;
         }
     }
 
@@ -122,6 +127,36 @@ public class ModalManager : MonoBehaviour
 
         small.Show(req.message ?? "", req.picture, () => onClose?.Invoke(true));
     }
+
+
+    //  ─── AltRewardChoice ────────────────────────────────────────────────────
+    private void ShowAltRewardChoice(ModalRequest req, Action<bool> onClose)
+    {
+        if (!altRewardChoice)
+        {
+            Debug.LogError("AltRewardChoiceModalUI prefab is not assigned");
+            onClose?.Invoke(false);
+            return;
+        }
+        // Инстанцируем префаб (каждый раз новое окно)
+        var ui = Instantiate(altRewardChoice, modalRoot ? modalRoot : transform);
+        TryApplySize(ui.gameObject, req.size);
+
+        // Пробрасываем выбор наружу и закрываем модалку
+        ui.Show(
+            req,
+            idx =>
+            {
+                // сообщаем индекс выбранной альтернативы исходному запросу
+                req.onAltChosen?.Invoke(idx);
+                // сообщаем вызывающему, что окно закрыто
+                onClose?.Invoke(true);
+                // инстанс можно уничтожить внутри самой модалки, либо здесь:
+                // Destroy(ui.gameObject);
+            }
+        );
+    }
+
 
     private System.Collections.IEnumerator ShowFreeRewardDefsQueue(List<FreeRewardDef> defs, Action<bool> onClose)
     {
