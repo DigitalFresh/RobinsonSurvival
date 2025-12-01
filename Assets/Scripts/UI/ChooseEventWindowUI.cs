@@ -41,6 +41,8 @@ public class ChooseEventWindowUI : MonoBehaviour
     private HexTile sourceTile;
     private int selectedIndex = 0;           // по умолчанию выбран первый вариант
 
+    private bool _tileClearedByCombat;   // если true — в конце пайплайна не чистим тайл повторно
+
     private void Awake()
     {
         Instance = this;
@@ -127,16 +129,16 @@ public class ChooseEventWindowUI : MonoBehaviour
     {
         selectedIndex = idx;
         ApplySelectionVisuals();
-        ReturnCardsFromDropZoneToHand();
+        //ReturnCardsFromDropZoneToHand();
 
-        if (dropZone && currentEvent != null && currentEvent.choices != null && currentEvent.choices.Count > 0)
-        {
-            int clamped = Mathf.Clamp(selectedIndex, 0, currentEvent.choices.Count - 1); // Защита индекса
-            var opt = currentEvent.choices[clamped];                                      // Текущая опция
-            dropZone.SetupRequirementTyped(opt.mainCostType,                              // Тип ✋/👊/👁
-                                           Mathf.Max(0, opt.mainCostAmount));            // Сколько нужно
-            //dropZone.ClearZone();                                                        // Очистить карты в зоне
-        }
+        //if (dropZone && currentEvent != null && currentEvent.choices != null && currentEvent.choices.Count > 0)
+        //{
+        //    int clamped = Mathf.Clamp(selectedIndex, 0, currentEvent.choices.Count - 1); // Защита индекса
+        //    var opt = currentEvent.choices[clamped];                                      // Текущая опция
+        //    dropZone.SetupRequirementTyped(opt.mainCostType,                              // Тип ✋/👊/👁
+        //                                   Mathf.Max(0, opt.mainCostAmount));            // Сколько нужно
+        //    //dropZone.ClearZone();                                                        // Очистить карты в зоне
+        //}
 
         UpdateConfirmInteractable();
     }
@@ -144,6 +146,7 @@ public class ChooseEventWindowUI : MonoBehaviour
     // Проверка условий выбранной опции, подсказка, включение Confirm
     public void UpdateConfirmInteractable()
     {
+        Debug.Log(dropZone.currentEye);
         if (!confirmButton || !dropZone || currentEvent == null) return;
 
         // если нет опций — ничего не подтверждаем
@@ -157,6 +160,7 @@ public class ChooseEventWindowUI : MonoBehaviour
         int idx = Mathf.Clamp(selectedIndex, 0, currentEvent.choices.Count - 1);
         var opt = currentEvent.choices[idx];
 
+        //Debug.Log(dropZone.currentEye);
         // 1) Главная стоимость (по выбранной опции)
         int have = 0;
         switch (opt.mainCostType)
@@ -200,32 +204,88 @@ public class ChooseEventWindowUI : MonoBehaviour
     private void OnConfirm()
     {
         if (currentEvent == null) { Hide(); return; }
+
+        // Находим выбранную опцию
         int idx = Mathf.Clamp(selectedIndex, 0, currentEvent.choices.Count - 1);
         var opt = currentEvent.choices[idx];
-        var freeRewardsToShow = new List<FreeRewardDef>(); // модалка по свободным наградам (может быть несколько)
 
-        var resourceRewardsToAnimate = new List<EventSO.Reward>(); // Копим ресурсы для полёта
-        var statRestoresToAnimate = new List<(EventSO.PlayerStat stat, int amount)>();
-        var statPenaltiesToAnimate = new List<(StatType stat, int amount)>();
-        var awardedCardDefs = new List<CardDef>(); // соберём, чтобы показать InfoModal (если есть новые карты)
-
-        bool needAwardedCardsModal = false;    // нужна ли модалка «получены карты»
-        bool needChooseFinalModal = false;     // поставьте true, если у вас есть финальная модалка
-
-        var cardsToAnimateToHand = new List<CardInstance>();     // Эти карты полетят в руку (есть место)
-        var cardsOverflowToDeckTop = new List<CardInstance>();   // Эти карты уйдут на верх колоды (места в руке нет)
-
-
-        // 1) применить награды с учётом gating (как в простом окне)
-        var stats = FindFirstObjectByType<PlayerStatsSimple>();
-        if (stats != null)
+        // Собираем награды выбранной опции (порядок сохранён)
+        var rewardsToProcess = new List<EventSO.Reward>();
+        if (opt != null && opt.rewards != null)
         {
-            // выдаём «реальные» награды из opt.rewards
-
-            foreach (var r in opt.rewards)
+            for (int i = 0; i < opt.rewards.Count; i++)
             {
-                // проверка «гейта» только если r.gatedByAdditional == true
-                bool grant = true;
+                var r = opt.rewards[i];
+                if (r != null) rewardsToProcess.Add(r);
+            }
+        }
+
+        // ПЕНАЛЬТИ: копим для VFX и сразу применяем к модели статов
+        var stats = FindFirstObjectByType<PlayerStatsSimple>();
+        var statPenaltiesToAnimate = new List<(StatType stat, int amount)>();
+        if (opt != null && opt.penalties != null)
+        {
+            for (int i = 0; i < opt.penalties.Count; i++)
+            {
+                var p = opt.penalties[i];
+                if (p == null || p.amount <= 0) continue;
+
+                int val = Mathf.Max(1, p.amount);
+                statPenaltiesToAnimate.Add((p.stat, val));
+
+                if (stats != null)
+                {
+                    switch (p.stat)
+                    {
+                        case StatType.Hunger: stats.ConsumeHunger(val); break;
+                        case StatType.Thirst: stats.ConsumeThirst(val); break;
+                        case StatType.Energy: stats.SpendEnergy(val); break;
+                        case StatType.Health: stats.TakeDamage(val); break;
+                    }
+                }
+            }
+        }
+
+        // Всё, что лежит в зоне события, отправляем в сброс ДО анимаций
+        MovePlacedCardsToDiscard();
+
+        // Прячем окно и запускаем общий «оркестратор» (как в EventWindowUI)
+        Hide();
+        StartCoroutine(ProcessRewardsSequentially(rewardsToProcess, statPenaltiesToAnimate));
+    }
+
+
+    /// Полная последовательность: пенальти → ресторы → ресурсы → модалка новых карт → анимация карт → free-reward бой (pre/post) → продолжение → финал
+    private IEnumerator ProcessRewardsSequentially(
+        List<EventSO.Reward> rewards,
+        List<(StatType stat, int amount)> statPenaltiesToAnimate
+    )
+    {
+        var inv = InventoryController.Instance;
+        var deck = FindFirstObjectByType<DeckController>();
+        var hand = HandController.Instance;
+        var map = HexMapController.Instance ?? FindFirstObjectByType<HexMapController>(FindObjectsInactive.Include);
+
+        // (1) Пенальти: одной пачкой (модель уже обновили в OnConfirm)
+        if (statPenaltiesToAnimate != null && statPenaltiesToAnimate.Count > 0)
+        {
+            bool penaltyDone = false;
+            RewardPickupAnimator.Instance?.PlayStatPenaltyBatch(
+                sourceTile,
+                statPenaltiesToAnimate,
+                onDone: () => penaltyDone = true
+            );
+            while (!penaltyDone) yield return null;
+        }
+
+        // (2) Награды по очереди (строго одна за другой)
+        if (rewards != null)
+            for (int i = 0; i < rewards.Count; i++)
+            {
+                var r = rewards[i];
+                if (r == null) continue;
+
+                // Доп. гейт награды (если включён)
                 if (r.gatedByAdditional)
                 {
                     int haveTag = r.requiredTag switch
@@ -235,265 +295,217 @@ public class ChooseEventWindowUI : MonoBehaviour
                         AddTag.Speed => dropZone.currentSpeed,
                         _ => 0
                     };
-                    grant = (haveTag >= r.requiredAmount);
+                    if (haveTag < r.requiredAmount) continue;
                 }
-                if (!grant) continue;
 
-                switch (r.type)
+                // 2.1) Ресторы статов: модель сразу, VFX после
+                if (r.type == EventSO.RewardType.RestoreStat && r.restoreAmount > 0)
                 {
-                    case EventSO.RewardType.Resource:
-                        resourceRewardsToAnimate.Add(r); // НЕ начисляем сейчас
-                        break;
+                    var stats = FindFirstObjectByType<PlayerStatsSimple>();
+                    int val = Mathf.Max(1, r.restoreAmount);
 
-                    case EventSO.RewardType.RestoreStat:
-                        int val = Mathf.Max(1, r.restoreAmount);             // нормализация
-                        statRestoresToAnimate.Add((r.stat, val));
-                        ApplyRestore(stats, r);
-                        break;
-
-                    case EventSO.RewardType.NewCard:
-
-                        if (r.cardDef == null) return;
-                        var deck = FindFirstObjectByType<DeckController>();
-                        var hand = HandController.Instance;
-                        //var awardedCardDefs = new List<CardDef>();
-                        if (deck == null || hand == null) return;
-
-                        for (int i = 0; i < Mathf.Max(1, r.cardCount); i++)
+                    if (stats != null)
+                    {
+                        switch (r.stat)
                         {
-                            var inst = new CardInstance(r.cardDef);
-
-                            int handCountProjected = HandController.Instance ? HandController.Instance.HandCount + cardsToAnimateToHand.Count : cardsToAnimateToHand.Count; // Проекция
-                            int maxHand = HandController.Instance ? HandController.Instance.maxHand : 7; // Fallback 10
-                            if (handCountProjected < maxHand)                                 // Если ещё есть место
-                                cardsToAnimateToHand.Add(inst);                               // Планируем анимацию в руку
-                            else
-                                cardsOverflowToDeckTop.Add(inst);                             // Перебор — пойдёт на верх колоды после анимации
-
-                            awardedCardDefs?.Add(r.cardDef); // для InfoModal
+                            case EventSO.PlayerStat.Hunger: stats.Eat(val); break;
+                            case EventSO.PlayerStat.Thirst: stats.Drink(val); break;
+                            case EventSO.PlayerStat.Energy: stats.GainEnergy(val); break;
+                            case EventSO.PlayerStat.Health: stats.Heal(val); break;
                         }
-                        //GiveNewCards(r, awardedCards);
-                        needAwardedCardsModal = true;
-                        // Debug.Log(awardedCards);
-                        break;
-                    case EventSO.RewardType.FreeReward:
-                        if (r.freeReward != null)
-                        {
-                            // 1) Исполняем её эффекты
-                            var ctx = new EffectContext();             // Источник нам не нужен; возьмём hand/deck/stats внутри
-                            foreach (var eff in r.freeReward.effects)
-                                if (eff) eff.Execute(ctx);
+                    }
 
-                            // 2) Готовим к показу модалки (покажем после всех наград/штрафов)
-                            if (freeRewardsToShow == null) freeRewardsToShow = new List<FreeRewardDef>();
-                            freeRewardsToShow.Add(r.freeReward);
-                        }
-                        break;
+                    bool restDone = false;
+                    RewardPickupAnimator.Instance?.PlayStatRestoreBatch(
+                        sourceTile,
+                        new List<(EventSO.PlayerStat stat, int amount)> { (r.stat, val) },
+                        onDone: () => restDone = true
+                    );
+                    while (!restDone) yield return null;
+                    continue;
                 }
+
+                // 2.2) Ресурсы: начисляем в onBefore, затем VFX (тайл→центр→инвентарь)
+                if (r.type == EventSO.RewardType.Resource && r.resource != null && r.amount > 0)
+                {
+                    bool resDone = false;
+                    RewardPickupAnimator.Instance?.PlayForRewards(
+                        sourceTile,
+                        new List<EventSO.Reward> { r },
+                        onBeforeInventoryApply: () =>
+                        {
+                            inv?.AddResource(r.resource, Mathf.Max(1, r.amount));
+                        },
+                        onAfterDone: () => resDone = true
+                    );
+                    while (!resDone) yield return null;
+                    continue;
+                }
+
+                // 2.3) Новые карты: СНАЧАЛА модалка «получены карты», потом анимация выдачи
+                if (r.type == EventSO.RewardType.NewCard && r.cardDef != null && r.cardCount > 0)
+                {
+                    // модалка «получены карты»
+                    yield return StartCoroutine(ShowCardsModalAndWait(
+                        CreateCardDefList(r.cardDef, Mathf.Max(1, r.cardCount))
+                    ));
+
+                    // выдача
+                    for (int k = 0; k < r.cardCount; k++)
+                    {
+                        var inst = new CardInstance(r.cardDef);
+
+                        int inHandNow = hand ? hand.HandCount : 0;
+                        int maxHand = hand ? hand.maxHand : 7;
+
+                        if (inHandNow < maxHand)
+                        {
+                            bool cardsDone = false;
+                            RewardPickupAnimator.Instance?.PlayCardsToHandFromDeck(
+                                new List<CardInstance> { inst },
+                                onDone: () => cardsDone = true
+                            );
+                            while (!cardsDone) yield return null;
+
+                            if (hand != null)
+                            {
+                                hand.AddCardToHand(inst);
+                                hand.RaisePilesChanged();
+                            }
+                        }
+                        else
+                        {
+                            deck?.AddToTop(inst); // перебор — на верх колоды без анимации
+                        }
+                    }
+                    continue;
+                }
+
+                // ====== FREE-REWARD: вступительная модалка (если включена во FreeRewardDef) ======
+                if (r.type == EventSO.RewardType.FreeReward && r.freeReward != null && r.freeReward.showModalBeforeEffects)
+                {
+                    // Если задан ключ — показываем модалку и ждём ОК
+                    if (!string.IsNullOrEmpty(r.freeReward.modalCatalogKey))
+                        yield return StartCoroutine(ShowFreeModalAndWait(r.freeReward.modalCatalogKey));
+                }
+
+                // 2.4) Free-reward, который запускает бой (pre/post модалки, ожидание боя)
+                StartAdHocCombatEffectDef combatEff = null;
+                if (r.type == EventSO.RewardType.FreeReward && r.freeReward != null && r.freeReward.effects != null)
+                {
+                    foreach (var eff in r.freeReward.effects)
+                    {
+                        if (eff is StartAdHocCombatEffectDef sc) { combatEff = sc; break; }
+                    }
+                }
+
+                if (combatEff != null)
+                {
+                    // pre-модалка боя (если задана)
+                    if (!string.IsNullOrEmpty(combatEff.preFightCatalogKey))
+                        yield return StartCoroutine(ShowFreeModalAndWait(combatEff.preFightCatalogKey));
+
+                    // запуск боя и ожидание результата
+                    if (map != null && sourceTile != null && combatEff.enemies != null && combatEff.enemies.Count > 0)
+                    {
+                        var cc1 = HexMapController.Instance ?? FindFirstObjectByType<HexMapController>(FindObjectsInactive.Include);
+                        if (cc1) cc1.suppressMapCleanupOnce = true;
+
+                        bool finished = false;
+                        bool playerWon = false;
+
+                        ModalGate.Acquire(this);
+                        map.StartAdHocCombat(sourceTile, combatEff.enemies, won => { finished = true; playerWon = won; });
+                        while (!finished) yield return null;
+                        ModalGate.Release(this);
+
+                        if (!playerWon) yield break;   // смерть/поражение — выходим из последовательности
+                    }
+
+                    // post-модалка боя (если задана)
+                    if (!string.IsNullOrEmpty(combatEff.postFightCatalogKey))
+                        yield return StartCoroutine(ShowFreeModalAndWait(combatEff.postFightCatalogKey));
+
+                    continue; // к следующей награде
+                }
+
+                // 2.5) Прочий «кастомный» эффект награды
+                //if (r.rewardEffect != null)
+                //{
+                //    r.rewardEffect.Execute(new EffectContext());
+                //    yield return null;
+                //}
             }
 
-            // 2) применить штрафы (opt.penalties)
-            foreach (var p in opt.penalties)
-            {
-                statPenaltiesToAnimate.Add((p.stat, Mathf.Max(1, p.amount)));
-                switch (p.stat)
-                {
-                    case StatType.Hunger: stats.ConsumeHunger(p.amount); break;
-                    case StatType.Thirst: stats.ConsumeThirst(p.amount); break;
-                    case StatType.Energy: stats.SpendEnergy(p.amount); break;
-                    case StatType.Health: stats.TakeDamage(p.amount); break;
-                }
-            }
-        }
-
-        if (freeRewardsToShow.Count > 0)
-        {
-            needChooseFinalModal = true;
-            //var rewardModal = FreeRewardModalUI.Get();
-            //rewardModal?.ShowMany(freeRewardsToShow); // покажем очередь модалок (если их несколько)
-        }
-
-        // 3) карты из зоны в сброс
-        MovePlacedCardsToDiscard();
-
+        // (3) Финал: если бой этого не сделал — очищаем тайл и переносим фишку
         if (sourceTile != null)
         {
-            var map = HexMapController.Instance
-                  ?? FindFirstObjectByType<HexMapController>(FindObjectsInactive.Include);
-            if (map) map.PopOneBarrierOnNeighbors(sourceTile);
+            sourceTile.SetType(HexType.Empty);
+            sourceTile.eventData = null;
+            sourceTile.Reveal();
+            sourceTile.UpdateVisual();
+            var map2 = HexMapController.Instance ?? FindFirstObjectByType<HexMapController>(FindObjectsInactive.Include);
+            if (map2 && map2.playerPawn) map2.playerPawn.MoveTo(sourceTile);
         }
 
-        Hide();                                        // Прячем окно выбора
-
-        StartCoroutine(ShowModalsThenRunAnimations_AndMove(
-            needChooseFinalModal,                 // chooseFinalModalUI (подключите при необходимости)
-            freeRewardsToShow,
-            needAwardedCardsModal,                // awardedCardModalUI (InfoModalUI)
-            awardedCardDefs,                      // новые карты
-            sourceTile,                           // гекс-источник
-            resourceRewardsToAnimate,             // ресурсы
-            statPenaltiesToAnimate,               // пенальти статов
-            statRestoresToAnimate,                 // ресторы статов
-            cardsToAnimateToHand,
-            cardsOverflowToDeckTop
-        ));
+        sourceTile = null;
+        gameObject.SetActive(false);
     }
 
-
-    /// Показать модалки (по очереди), затем запустить все анимации и движение фишки
-    private IEnumerator ShowModalsThenRunAnimations_AndMove(
-        bool needChooseFinalModal,                                // нужно ли показывать chooseFinalModalUI
-        List<FreeRewardDef> freeRewardsToShow, // модалка по свободным наградам (может быть несколько)
-        bool needAwardedCardsModal,                               // нужно ли показывать awardedCardModalUI (InfoModalUI)
-        List<CardDef> awardedCardDefs,                            // список новых карт для модалки с картами
-        HexTile tile,                                             // гекс-источник для анимаций
-        List<EventSO.Reward> resourceRewards,                     // ресурсные награды
-        List<(StatType stat, int amount)> statPenalties,          // штрафы статов
-        List<(EventSO.PlayerStat stat, int amount)> statRestores,  // ресторы статов
-        List<CardInstance> cardsToAnimateToHand,     // Эти карты полетят в руку (есть место)
-        List<CardInstance> cardsOverflowToDeckTop // Эти карты уйдут на верх колоды (места в руке нет)
-    )
+    // Показать модалку «получены карты» и дождаться ОК
+    private IEnumerator ShowCardsModalAndWait(List<CardDef> defs)
     {
-        // 1) МОДАЛКИ — ПОСЛЕДОВАТЕЛЬНО
-        // 1.1) chooseFinalModalUI (если используется у вас; оставляю место подключения)
-        if (needChooseFinalModal && freeRewardsToShow != null && freeRewardsToShow.Count > 0)
+        if (defs == null || defs.Count == 0) yield break;
+
+        var req = new ModalRequest
         {
-            bool done = false;
-            ModalManager.Instance?.Show(new ModalRequest
-            {
-                kind = ModalKind.FreeReward,
-                size = ModalSize.Medium,
-                freeRewards = freeRewardsToShow    // <— теперь поле существует
-            }, _ => done = true);
+            kind = ModalKind.Info,
+            size = ModalSize.Medium,
+            title = (defs.Count == 1) ? "Получена новая карта"
+                                      : $"Получены новые карты ×{defs.Count}",
+            cards = defs
+        };
 
-            while (!done) yield return null;
-        }
-        //if (needChooseFinalModal)
-        //{
-        //    ModalGate.Acquire(this);
-        //    var rewardModal = FreeRewardModalUI.Get();
-        //    rewardModal?.ShowMany(freeRewardsToShow); // покажем очередь модалок (если их несколько)
+        bool closed = false;
+        ModalManager.Instance?.Show(req, onClose: _ => closed = true);
+        while (!closed) yield return null;
+    }
 
-        //    while (rewardModal.isActiveAndEnabled)
-        //        yield return null;
-        //    ModalGate.Release(this);
-        //}
-        //Debug.Log(needAwardedCardsModal);
-        //Debug.Log(awardedCardDefs);
+    // Показать большую free-reward модалку из каталога и дождаться ОК
+    private IEnumerator ShowFreeModalAndWait(string catalogKey)
+    {
+        string title = null, body = null;
+        Sprite picture = null;
 
-        // 1.2) awardedCardModalUI — в вашем проекте это InfoModalUI.ShowNewCards(...)
-        if (needAwardedCardsModal && awardedCardDefs != null && awardedCardDefs.Count > 0)
+        var provider = ModalContentProvider.Instance;
+        if (provider != null)
         {
-            bool doneCards = false;
-            ModalManager.Instance?.Show(new ModalRequest
-            {
-                kind = ModalKind.Info,
-                size = ModalSize.Large,
-                title = (awardedCardDefs.Count == 1) ? "Получена новая карта" : $"Получены новые карты ×{awardedCardDefs.Count}",
-                cards = awardedCardDefs
-            }, _ => doneCards = true);
-
-            while (!doneCards) yield return null;
+            var rc = provider.Resolve(catalogKey); // rc: title, description, image
+            title = rc.title;
+            body = rc.description;
+            picture = rc.image;
         }
 
-
-        //if (needAwardedCardsModal && awardedCardDefs != null && awardedCardDefs.Count > 0)
-        //{
-        //    // Находим модалку «новые карты»
-        //    var cardsModal = FindFirstObjectByType<InfoModalUI>(FindObjectsInactive.Include); // используем ваш InfoModalUI
-        //    if (cardsModal != null)                                                           // если нашли
-        //    {
-        //        //Debug.Log(needAwardedCardsModal);
-        //        ModalGate.Acquire(this);                                                      // блокируем ввод
-        //                                                                                      // Показываем модалку (текст можно менять по вкусу)
-        //        string msg = (awardedCardDefs.Count == 1) ? "Получена новая карта" : $"Получены новые карты ×{awardedCardDefs.Count}";
-        //        cardsModal.ShowNewCards(msg, awardedCardDefs);                                // показать список карт
-        //        yield return null;                                                            // кадр на отрисовку
-        //                                                                                      // Ждём пока модалка закроется (если нет коллбека onClose — поллим активность)
-        //        while (cardsModal.isActiveAndEnabled)                                         // пока открыта
-        //            yield return null;                                                        // ждём кадр
-        //        ModalGate.Release(this);                                                      // снимаем блок
-        //    }
-        //}
-
-        // 2) АНИМАЦИИ — ПО ПОРЯДКУ: пенальти → ресторы → ресурсы
-        // 2.1) Пенальти: левый верх → центр → тайл (по одной иконке за единицу)
-        bool penaltyDone = false;                                                             // флаг завершения
-        RewardPickupAnimator.Instance?.PlayStatPenaltyBatch(                                  // запускаем партию
-            tile,                                                                             // гекс-цель
-            statPenalties,                                                                    // список штрафов
-            onDone: () => { penaltyDone = true; }                                             // коллбек завершения
-        );
-        while (!penaltyDone) yield return null;                                               // ждём завершения пенальти
-
-        // 2.2) Ресторы: тайл → центр → левый верх (по одной иконке за единицу)
-        bool restoreDone = false;                                                             // флаг завершения
-        RewardPickupAnimator.Instance?.PlayStatRestoreBatch(                                  // запускаем партию
-            tile,                                                                             // гекс-источник
-            statRestores,                                                                     // список ресторов
-            onDone: () => { restoreDone = true; }                                             // коллбек завершения
-        );
-        while (!restoreDone) yield return null;                                               // ждём завершения ресторов
-
-        // 2.3) Ресурсы: тайл → центр → слот инвентаря (быстрый режим без «полки»)
-        bool resourcesDone = false;                                                           // флаг завершения
-        RewardPickupAnimator.Instance?.PlayForRewards(                                        // запускаем партию ресурсов
-            tile,                                                                             // гекс-источник
-            resourceRewards,                                                                  // список ресурсных наград
-            onBeforeInventoryApply: () =>                                                     // перед посадкой — начисляем ресурсы в модель
-            {
-                var invCtrl = InventoryController.Instance;                                   // берём инвентарь
-                if (invCtrl != null)                                                          // если есть
-                {
-                    foreach (var rr in resourceRewards)                                       // для каждой награды
-                        invCtrl.AddResource(rr.resource, Mathf.Max(1, rr.amount));            // начисляем (новые слоты будут скрыты)
-                }
-            },
-            onAfterDone: () => { resourcesDone = true; }                                      // ресурсы долетели
-        );
-        while (!resourcesDone) yield return null;                                             // ждём завершения ресурсов
-
-        // 2.4) Карты из события: «колода → центр → правая часть руки», ПОТОМ фактическое добавление в руку
-        bool cardsDrawn = false;                                                             // Флаг завершения полёта
-        var deck = FindFirstObjectByType<DeckController>();   // нужна ссылка на колоду
-                                                              // Сначала подкладываем «перебор» на колоду (без анимации), чтобы игрок не видел «ложный» перелёт
-        if (cardsOverflowToDeckTop.Count > 0 && deck != null)                                // Если есть излишки
+        var req = new ModalRequest
         {
-            foreach (var inst in cardsOverflowToDeckTop) deck.AddToTop(inst);                // Сразу кладём на верх колоды
-        }
-        // Теперь — полёт только для тех, кто реально попадёт в руку
-        RewardPickupAnimator.Instance?.PlayCardsToHandFromDeck(
-            cardsToAnimateToHand,                                                            // Эти карты анимируем
-            onDone: () => { cardsDrawn = true; }                                             // Готово — ставим флаг
-        );
-        while (!cardsDrawn) yield return null;                                               // Ждём завершения анимации
-                                                                                             // И ТОЛЬКО СЕЙЧАС фактически добавляем их в руку (спавн UI и т.п.)
-        if (HandController.Instance != null)                                                 // Если есть контроллер руки
-        {
-            foreach (var inst in cardsToAnimateToHand) HandController.Instance.AddCardToHand(inst); // Добавляем
-            HandController.Instance.RaisePilesChanged();                                     // Сообщаем UI о переменах
-        }
+            kind = ModalKind.FreeReward,
+            size = ModalSize.Medium,
+            title = title,
+            message = body,
+            picture = picture
+        };
 
-        // 3) ТОЛЬКО ТЕПЕРЬ — очищаем тайл и двигаем фишку
-        if (tile != null)                                                                      // если гекс валиден
-        {
-            tile.SetType(HexType.Empty);                                                       // делаем пустым
-            tile.eventData = null;                                                             // снимаем данные события
-            tile.Reveal();                                                                     // оставляем открытым
-            tile.UpdateVisual();                                                               // обновляем визуал
-        }
-        //Debug.Log(sourceTile);
-        var map = HexMapController.Instance;
-        if (map != null && map.playerPawn != null)
-        {
-            map.playerPawn.MoveTo(sourceTile);
-        }
-        //ForceTileVisualRefresh(sourceTile);
-        sourceTile = null;
-        gameObject.SetActive(false);                          // плавно двигаем фишку
+        bool closed = false;
+        ModalManager.Instance?.Show(req, onClose: _ => closed = true);
+        while (!closed) yield return null;
+    }
 
-        // Готово
-        yield break;                                                                           // завершаем корутину
+    // Сервис: N повторов одного CardDef
+    private List<CardDef> CreateCardDefList(CardDef def, int count)
+    {
+        var l = new List<CardDef>(count);
+        for (int i = 0; i < count; i++) l.Add(def);
+        return l;
     }
 
     private void ApplyRestore(PlayerStatsSimple stats, EventSO.Reward r)
