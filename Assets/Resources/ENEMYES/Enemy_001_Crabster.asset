@@ -14,12 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   displayName: Crabster
   sprite: {fileID: 2940359857572100557, guid: 664c16a5dba55b248a4644c16db2e618, type: 3}
-  attack: 3
-  armor: 0
-  maxHP: 3
+  attack: 2
+  armor: 1
+  maxHP: 2
   tags:
-  - "\u0416\u0438\u0432\u043E\u0442\u043D\u043E\u0435"
+  - {fileID: 0}
+  tagNotes: []
   loot:
-  - resource: {fileID: 11400000, guid: 49655cef62bd40340bbb731f7406274d, type: 2}
-    amount: 3
+  - resource: {fileID: 11400000, guid: 15a146d1128bce44abc06ac3f15c64cb, type: 2}
+    amount: 2
   traits: []
