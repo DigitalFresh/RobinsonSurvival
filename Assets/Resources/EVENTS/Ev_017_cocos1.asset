@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51e3b76e3e3861b46b0dc7effc6e5933, type: 3}
+  m_Name: Ev_017_cocos1
+  m_EditorClassIdentifier: 
+  eventId: Ev_017_cocos1
+  eventName: "\u041F\u043E\u043F\u0440\u043E\u0431\u043E\u0432\u0430\u0442\u044C
+    \u043A\u043E\u043A\u043E\u0441"
+  description: 
+  icon: {fileID: 2150122135962666392, guid: ca3633868c62812499d4e6f14af92a75, type: 3}
+  isCombat: 0
+  isChoice: 0
+  isResource: 1
+  mainCostType: 0
+  mainCostAmount: 3
+  additionalCosts: []
+  additionalMandatory: 0
+  penalties: []
+  rewards:
+  - type: 0
+    icon: {fileID: 0}
+    resource: {fileID: 11400000, guid: 49655cef62bd40340bbb731f7406274d, type: 2}
+    amount: 2
+    stat: 0
+    restoreAmount: 1
+    cardDef: {fileID: 0}
+    cardCount: 1
+    knownPreview: 1
+    freeReward: {fileID: 0}
+    gatedByAdditional: 0
+    tooltip: 
+    requiredTag: 0
+    requiredAmount: 1
+  - type: 1
+    icon: {fileID: 0}
+    resource: {fileID: 0}
+    amount: 1
+    stat: 1
+    restoreAmount: 2
+    cardDef: {fileID: 0}
+    cardCount: 1
+    knownPreview: 1
+    freeReward: {fileID: 0}
+    gatedByAdditional: 0
+    tooltip: 
+    requiredTag: 0
+    requiredAmount: 1
+  rewardsAreAlternative: 0
+  alternativeRewards: []
+  choices: []
+  isAggressiveCombat: 0
+  combatEnemies: []
+  previewEnemyIndex: 0
+  defaultHint: 0
