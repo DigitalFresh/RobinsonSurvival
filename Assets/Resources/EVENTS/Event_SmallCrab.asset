@@ -28,19 +28,17 @@ MonoBehaviour:
   isChoice: 0
   isResource: 1
   mainCostType: 0
-  mainCostAmount: 4
+  mainCostAmount: 1
   additionalCosts: []
   additionalMandatory: 0
   penalties:
   - stat: 0
     amount: 1
-  - stat: 1
-    amount: 1
   rewards:
   - type: 0
     icon: {fileID: 0}
-    resource: {fileID: 11400000, guid: b5d2ae5f69a6964499f13632b178e6fb, type: 2}
-    amount: 4
+    resource: {fileID: 11400000, guid: 4a72f4ef36129134f98c1ac7b9cf5efd, type: 2}
+    amount: 1
     stat: 0
     restoreAmount: 1
     cardDef: {fileID: 0}
@@ -50,11 +48,39 @@ MonoBehaviour:
     gatedByAdditional: 0
     tooltip: 
     requiredTag: 0
-    requiredAmount: 0
-  - type: 0
+    requiredAmount: 1
+  - type: 2
     icon: {fileID: 0}
-    resource: {fileID: 11400000, guid: 4a72f4ef36129134f98c1ac7b9cf5efd, type: 2}
-    amount: 2
+    resource: {fileID: 0}
+    amount: 1
+    stat: 0
+    restoreAmount: 1
+    cardDef: {fileID: 11400000, guid: f301001d896ccd64fa406450bd8d458f, type: 2}
+    cardCount: 1
+    knownPreview: 1
+    freeReward: {fileID: 0}
+    gatedByAdditional: 0
+    tooltip: 
+    requiredTag: 0
+    requiredAmount: 1
+  - type: 3
+    icon: {fileID: 0}
+    resource: {fileID: 0}
+    amount: 1
+    stat: 0
+    restoreAmount: 1
+    cardDef: {fileID: 0}
+    cardCount: 1
+    knownPreview: 1
+    freeReward: {fileID: 11400000, guid: 55a09deaeceba25479e57957a08f29d3, type: 2}
+    gatedByAdditional: 0
+    tooltip: 
+    requiredTag: 0
+    requiredAmount: 1
+  - type: 1
+    icon: {fileID: 0}
+    resource: {fileID: 0}
+    amount: 1
     stat: 0
     restoreAmount: 1
     cardDef: {fileID: 0}
@@ -62,9 +88,9 @@ MonoBehaviour:
     knownPreview: 1
     freeReward: {fileID: 0}
     gatedByAdditional: 0
-    tooltip: "\u0411\u0440\u0435\u0432\u043D\u0430"
+    tooltip: 
     requiredTag: 0
-    requiredAmount: 0
+    requiredAmount: 1
   rewardsAreAlternative: 0
   alternativeRewards: []
   choices: []
