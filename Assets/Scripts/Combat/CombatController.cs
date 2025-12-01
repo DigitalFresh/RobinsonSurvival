@@ -59,6 +59,10 @@ public class CombatController : MonoBehaviour
     private int _cardsInZones = 0;                                                         // текущее число карт Attack/Defense
     public int CardsInZones => _cardsInZones;                                              // чтение для UI/логики (CardView и др.)
 
+    // CombatController.cs  — ДОБАВИТЬ внутри класса
+    public bool IsRunning => isRunning;                        // публичный флаг «бой идёт»
+    public event System.Action<bool> CombatEnded;              // true = победа игрока
+
     private void Awake()
     {
         Instance = this;                                        // Сохраняем синглтон
@@ -494,6 +498,7 @@ public class CombatController : MonoBehaviour
         if (combatScreen) combatScreen.SetActive(false);
         if (deckHUD) { if (deckHUD.Buttons) deckHUD.Buttons.SetActive(true); }
         ModalGate.Release(this);
+        CombatEnded?.Invoke(playerWon);
     }
 
 
