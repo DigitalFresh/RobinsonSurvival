@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb4cabc767ced22419efbe1131cac47c, type: 3}
+  m_Name: Enemy_003_Rabbit
+  m_EditorClassIdentifier: Assembly-CSharp::EnemySO
+  displayName: "\u041A\u0440\u043E\u043B\u0438\u043A"
+  sprite: {fileID: -2851250986260913633, guid: 5f66e0c0697842241bc56dadafb0dedd, type: 3}
+  attack: 1
+  armor: 0
+  maxHP: 2
+  tags:
+  - {fileID: 11400000, guid: 334c803211a733145bbf46d2ca7a22af, type: 2}
+  tagNotes: []
+  loot:
+  - resource: {fileID: 11400000, guid: 83addebef9de01f418682ea9a69a14df, type: 2}
+    amount: 2
+  traits:
+  - {fileID: 0}

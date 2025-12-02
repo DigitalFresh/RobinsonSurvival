@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51e3b76e3e3861b46b0dc7effc6e5933, type: 3}
+  m_Name: Ev_009_enotLair
+  m_EditorClassIdentifier: Assembly-CSharp::EventSO
+  eventId: Ev_009_enotLair
+  eventName: "\u041D\u043E\u0440\u0430 \u0435\u043D\u043E\u0442\u0430"
+  description: "\u0425\u043C\u043C... \u0417\u0434\u0435\u0441\u044C \u043F\u043E\u0434
+    \u043A\u043E\u0440\u043D\u044F\u043C\u0438 \u0431\u043E\u043B\u044C\u0448\u043E\u0433\u043E
+    \u0434\u0435\u0440\u0435\u0432\u0430 \u0436\u0438\u043B \u0435\u043D\u043E\u0442.
+    \u041D\u0430 \u0434\u0435\u0440\u0435\u0432\u0435 \u0441\u043B\u0435\u0434\u044B
+    \u0442\u043E\u043F\u043E\u0440\u0430 \u0438\u043B\u0438 \u043D\u043E\u0436\u0430.
+    \u0412\u0440\u044F\u0434 \u043B\u0438 \u043E\u043D \u0441\u0430\u043C \u0432\u044B\u0434\u043E\u043B\u0431\u0438\u043B
+    \u0442\u0430\u043A\u043E\u0435 \u0443\u043A\u0440\u044B\u0442\u0438\u0435, \u043A\u0442\u043E-\u0442\u043E
+    \u0441\u043F\u0435\u0446\u0438\u0430\u043B\u044C\u043D\u043E \u0440\u0430\u0441\u0448\u0438\u0440\u0438\u043B
+    \u044D\u0442\u043E \u0434\u0443\u043F\u043B\u043E. \u0421\u0442\u043E\u0438\u0442
+    \u043E\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C."
+  icon: {fileID: -5894039625770453801, guid: 19f8d35972651c44cb671f2be17be689, type: 3}
+  isCombat: 0
+  isChoice: 0
+  isResource: 1
+  mainCostType: 0
+  mainCostAmount: 1
+  additionalCosts: []
+  additionalMandatory: 0
+  penalties: []
+  rewards:
+  - type: 2
+    icon: {fileID: 0}
+    resource: {fileID: 0}
+    amount: 1
+    stat: 0
+    restoreAmount: 1
+    cardDef: {fileID: 11400000, guid: 47c7fa99326aa864cbf754aadc96a816, type: 2}
+    cardCount: 1
+    knownPreview: 1
+    freeReward: {fileID: 0}
+    gatedByAdditional: 0
+    tooltip: 
+    requiredTag: 0
+    requiredAmount: 1
+  rewardsAreAlternative: 0
+  alternativeRewards: []
+  choices: []
+  isAggressiveCombat: 0
+  combatEnemies: []
+  previewEnemyIndex: 0
+  defaultHint: 4

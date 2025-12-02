@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb4cabc767ced22419efbe1131cac47c, type: 3}
+  m_Name: enemy_007_monkeyWithBag
+  m_EditorClassIdentifier: 
+  displayName: Monkey with a bag
+  sprite: {fileID: -6170409736479512156, guid: 7927dace35396e34fa047534d32d91ea, type: 3}
+  attack: 4
+  armor: 0
+  maxHP: 3
+  tags:
+  - {fileID: 0}
+  tagNotes: []
+  loot: []
+  traits: []

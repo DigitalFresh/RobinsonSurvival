@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0b4c930a752126438303e9422f4e8f3, type: 3}
+  m_Name: HexHintIconSet
+  m_EditorClassIdentifier: Assembly-CSharp::HexHintIconSet
+  icons:
+  - {fileID: 0}
+  - {fileID: 5690540085185823700, guid: 96f3a39883ef37648b7910f57345abe9, type: 3}
+  - {fileID: -6697415473915010289, guid: 7701940ac4e95294e89a83a6e773d038, type: 3}
+  - {fileID: -2539525862209097498, guid: 4324bb99605d2fc41a085e1a4e8a5fdd, type: 3}
+  - {fileID: 8900122434262479983, guid: 43e0a6fe9d3018e448a194033f9f02e9, type: 3}
+  - {fileID: -533725166383920534, guid: c67622d032be7cd4b84db9950767e620, type: 3}

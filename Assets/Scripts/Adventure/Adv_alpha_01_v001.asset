@@ -1,0 +1,470 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d89ad95aae2085d42be2cf03c7476e46, type: 3}
+  m_Name: Adv_alpha_01_v001
+  m_EditorClassIdentifier: 
+  adventureId: 6efe7546-8097-4528-8dc4-65f3735d5ce7
+  displayName: Firts steps
+  version: 1
+  width: 5
+  height: 5
+  cells:
+  - x: 0
+    y: 2
+    visible: 1
+    terrain: 3
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 4
+    y: 2
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 9cc722c68987d5548bf6510e040ee0f2, type: 2}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 0
+    y: 1
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 64c65fb941223e44f884ba5c031f2cda, type: 2}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 0
+    y: 0
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 4a55bbbb8f3dbf04a8b5712fd464b3f7, type: 2}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 0
+    y: 4
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 0eff0004063a042428086b0a3602017d, type: 2}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 0
+    y: 3
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: f47f647435979ad42a6c2c7fe4ad0edd, type: 2}
+    barriers: 03000000
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 1
+    y: 4
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 9550c5711f97cef4e954cb1b7cf1d2f2, type: 2}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 1
+    y: 3
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 31cd63cf6a4d3e745aad8cd8ae7ea4ec, type: 2}
+    barriers: 0300000003000000
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 1
+    y: 2
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: dd5feb0360878ba4c8aa78c251aa8062, type: 2}
+    barriers: 03000000
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 1
+    y: 1
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: df4b0a6079e859243b38f214adaefbed, type: 2}
+    barriers: 0300000003000000
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 1
+    y: 0
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 576c2205e3105984f8ae8d4f6bae1e60, type: 2}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 2
+    y: 2
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 31cd63cf6a4d3e745aad8cd8ae7ea4ec, type: 2}
+    barriers: 0100000001000000
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 2
+    y: 3
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 65f12dc0d4401014c9996ca99da2f468, type: 2}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 3
+    y: 1
+    visible: 1
+    terrain: 1
+    eventAsset: {fileID: 11400000, guid: 3178a52dcab83744db1d005216784eb3, type: 2}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 2
+    y: 1
+    visible: 1
+    terrain: 2
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 3
+    y: 2
+    visible: 1
+    terrain: 2
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 2
+    y: 4
+    visible: 1
+    terrain: 2
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 3
+    y: 3
+    visible: 1
+    terrain: 2
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 4
+    y: 3
+    visible: 1
+    terrain: 4
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 4
+    y: 4
+    visible: 0
+    terrain: 0
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 3
+    y: 4
+    visible: 0
+    terrain: 0
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 4
+    y: 0
+    visible: 0
+    terrain: 0
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 4
+    y: 1
+    visible: 1
+    terrain: 2
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 2
+    y: 0
+    visible: 0
+    terrain: 0
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 
+  - x: 3
+    y: 0
+    visible: 1
+    terrain: 2
+    eventAsset: {fileID: 0}
+    barriers: 
+    backUnrevealedSet: {fileID: 0}
+    backBlockedSet: {fileID: 0}
+    backRevealedSet: {fileID: 0}
+    backUnrevealed:
+      fixedIndex: -1
+      pool: 
+    backBlocked:
+      fixedIndex: -1
+      pool: 
+    backRevealed:
+      fixedIndex: -1
+      pool: 

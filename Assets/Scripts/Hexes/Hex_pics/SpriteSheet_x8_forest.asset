@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa352b7c5e088a1419acf1dd0869e914, type: 3}
+  m_Name: SpriteSheet_x8_forest
+  m_EditorClassIdentifier: Assembly-CSharp::SpriteSheetSet
+  displayName: Forest_frei
+  sourceSheet: {fileID: 2800000, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
+  autoCollectFromSource: 1
+  sprites:
+  - {fileID: 6517518444131235266, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
+  - {fileID: 828804296, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
+  - {fileID: -1486991328, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
+  - {fileID: -1778902978, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
+  - {fileID: 1827717622, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
+  - {fileID: -1317173006, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
+  - {fileID: -757579156, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
+  - {fileID: -506428772, guid: 94ea135067eed36499712ea3d1a34238, type: 3}
